@@ -9,7 +9,7 @@ while(!require('tseries'))
 if(!exists("mydata")||is.null(mydata)){
   mydata <- read.csv("dataset_mood_smartphone.csv")
 }
-mydata$day<-strptime(mydata[,3], "%Y-%m-%d")
+mydata$day<-strptime(mydata[,3], "%y-%m-%d")
 
 mydata$timeOfDay<-strptime(mydata$time, "%Y-%m-%d %H:%M:%OS")
 mydata$timeOfDay<-format(mydata$timeOfDay, format="%H:%M:%S")
