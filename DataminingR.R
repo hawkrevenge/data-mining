@@ -23,6 +23,6 @@ mydata$weekday <- factor(mydata$weekday, levels= DaysOfTheWeek)
 mydata<-mydata[order(mydata$weekday), ]
 
 
-boxplot(value~weekday,data=mydata[mydata$variable=="mood", ], main="Mood", xlab="Day of the Week", ylab="Mood")
+#boxplot(value~weekday,data=mydata[mydata$variable=="mood", ], main="Mood", xlab="Day of the Week", ylab="Mood")
 
 #print(DaysOfTheWeek)
