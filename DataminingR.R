@@ -22,14 +22,6 @@ AssignPartOfDay<-function(vctr)
   return(returnvctr)
 }
 
-#All initializing steps are done here
-Initialize<-function(mydata){
-
-  
-  
-  return(mydata)
-}
-
 #function for the first plots
 ReconPlot<-function(mydata, plot){
   if(plot){
@@ -42,6 +34,7 @@ ReconPlot<-function(mydata, plot){
     #extra violinPlot
     print(ggplot(mydata[mydata$variable=="mood", ], aes(weekday, value)) +
             geom_violin(aes(fill = weekday)))
+    
     #plot of the time of day
     mydata$PartOfDay <- factor(mydata$partOfDay, levels=PartsOfTheDay)
     mydata<-mydata[order(mydata$partOfDay), ]
@@ -55,6 +48,7 @@ ReconPlot<-function(mydata, plot){
 
 ################### MAIN #######################
 Main<-function(){
+  
   #Required packages
   while(!require('ggplot2'))
     install.packages('ggplot2')
@@ -64,9 +58,9 @@ Main<-function(){
     install.packages('tseries')  
   
   #constants (often for sorting purposes)
-  DaysOfTheWeek<-c( "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-  DaysOfTheWeekend<-c("Saturday", "Sunday")
-  PartsOfTheDay<-c("Morning","Afternoon","Evening","Night")
+  DaysOfTheWeek<<-c( "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+  DaysOfTheWeekend<<-c("Saturday", "Sunday")
+  PartsOfTheDay<<-c("Morning","Afternoon","Evening","Night")
   
   #descision variables
   plot <- TRUE #whether it should plot
