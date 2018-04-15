@@ -22,6 +22,13 @@ AssignPartOfDay<-function(vctr)
   return(returnvctr)
 }
 
+#sorts the list by a column of ones choice
+Sort<-function(unsorted, sortBy, level=NULL){
+  if(!is.null(level))
+    {sortBy<- factor(sortBy, levels=level)}
+  return(unsorted[order(sortBy), ])
+}
+
 #function for the first plots
 ReconPlot<-function(mydata, plot){
   if(plot){
@@ -46,6 +53,47 @@ ReconPlot<-function(mydata, plot){
   }
 }
 
+PreprocessData<-function(mydata){#preprocesses for the learning algorithm
+  
+}
+
+BenchmarkPreprocess<-function(mydata){ #only get the mean mood of the previous recorded day
+  
+  uniqueUsers<-unique(mydata$id)
+  
+  mydata[order(mydata$time),] #order by time just to be sure
+  prevMood<-c()#colnames(list())<-c("prevMood","todayMood")
+  todayMood<-c()
+  difference<-c()
+  moodList <- mydata[mydata$variable=="mood",]
+  counter<-0
+  for(user in uniqueUsers){
+    dataForUser<-moodList[moodList$id==user,]
+    tempDays <- unique(dataForUser$day)
+    for(i in 2:length(tempDays)){
+      #chance to skip days here when too much space between (might be prepreprocess though)
+      if(TRUE){
+        counter<- counter+1
+        prevMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i-1],]$value)
+        todayMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i],]$value)
+        difference[counter]<-abs(prevMood[counter]-todayMood[counter])
+      }
+    }
+  }
+  return(data.frame(prevMood,todayMood,difference))
+}
+
+Benchmark<-function(mydata, benchSwitch){
+  if(benchSwitch)
+  {
+    benchData<-BenchmarkPreprocess(mydata)
+    print(summary(benchData$difference))
+    print(attributes(benchData$difference))
+    print(stat.desc(benchData$difference))
+    #print(benchData)
+  }
+}
+
 ################### MAIN #######################
 Main<-function(){
   
@@ -55,7 +103,10 @@ Main<-function(){
   while(!require('forecast'))
     install.packages('forecast')
   while(!require('tseries'))
-    install.packages('tseries')  
+    install.packages('tseries') 
+  while(!require('pastecs'))
+    install.packages('pastecs')
+
   
   #constants (often for sorting purposes)
   DaysOfTheWeek<<-c( "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -63,11 +114,12 @@ Main<-function(){
   PartsOfTheDay<<-c("Morning","Afternoon","Evening","Night")
   
   #descision variables
-  plot <- TRUE #whether it should plot
+  plot <- FALSE #whether it should plot
   init <- TRUE #whether we should still initialize
   reload <- TRUE # reloads everything
+  benchSwitch <- TRUE #whether the benchmark should be runned
   
-
+  
     
   #Check if the Data has already been read otherwise it will load
   if(!exists("mydata")||is.null(mydata)||reload){
@@ -86,8 +138,16 @@ Main<-function(){
     mydata$partOfDay <- AssignPartOfDay(mydata$hourOfDay)
   }
   
+
+  
   #Begin the sorting and plotting
   ReconPlot(mydata, plot)
+  
+  #begin the prediction algorithms
+  Benchmark(mydata, benchSwitch)
+  
+  
+  print("FINISHED")
 }
 
 Main()
