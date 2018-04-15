@@ -54,14 +54,38 @@ ReconPlot<-function(mydata, plot){
 }
 
 PreprocessData<-function(mydata){#preprocesses for the learning algorithm
-  
+  uniqueUsers<-unique(mydata$id)
+  mydata<-mydata[order(mydata$time),] #order by time just to be sure
+  day<-as.POSIXct(Sys.Date())
+  id<-c()
+  moodList <- mydata[mydata$variable=="mood",]
+  #notMoodList <- mydata[mydata$variable!="mood",]
+  counter<-0
+  for(user in uniqueUsers){
+    tempDays <- unique(moodList[moodList$id==user,]$day)
+    #notTempDays<-as.character(unique(notMoodList[notMoodList$id==user,]$day))
+    #print(notTempDays)
+    for(i in 6:length(tempDays)){
+      #if(! (as.character(tempDays[i]) %in% notTempDays)){print("only mood")}
+      counter<- counter+1
+      day[counter]<-tempDays[i]
+      print(day)
+      id[counter]<-user
+    }
+    break
+  }
+  print(head(day))
+  print(head(data.frame(id,day)))
+  return(data.frame(id,day))
 }
 
+
+#Benchmark algorithms ##
 BenchmarkPreprocess<-function(mydata){ #only get the mean mood of the previous recorded day
   
   uniqueUsers<-unique(mydata$id)
   
-  mydata[order(mydata$time),] #order by time just to be sure
+  mydata<-mydata[order(mydata$time),] #order by time just to be sure
   prevMood<-c()#colnames(list())<-c("prevMood","todayMood")
   todayMood<-c()
   difference<-c()
@@ -88,11 +112,40 @@ Benchmark<-function(mydata, benchSwitch){
   {
     benchData<-BenchmarkPreprocess(mydata)
     print(summary(benchData$difference))
-    print(attributes(benchData$difference))
     print(stat.desc(benchData$difference))
     #print(benchData)
   }
 }
+
+#Normal algorithms ##
+NormalPreprocess<-function(mydata, chosenDays){
+  uniqueUsers<-unique(mydata$id)
+  
+  mydata<-mydata[order(mydata$time),] #order by time just to be sure
+  prevMood<-c()#colnames(list())<-c("prevMood","todayMood")
+  todayMood<-c()
+  difference<-c()
+  moodList <- mydata[mydata$variable=="mood",]
+  counter<-0
+  for(user in uniqueUsers){
+    dataForUser<-moodList[moodList$id==user,]
+    tempDays <- unique(dataForUser$day)
+    for(i in length(tempDays)){
+        counter<- counter+1
+        prevMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i-1],]$value)
+        todayMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i],]$value)
+        difference[counter]<-abs(prevMood[counter]-todayMood[counter])
+    }
+  }
+}
+
+NormalLearning<-function(mydata, chosenDays, normalSwitch){
+  if(normalSwitch)
+  {
+    normalData<-NormalPreprocess(mydata,chosenDays)
+  }
+}
+
 
 ################### MAIN #######################
 Main<-function(){
@@ -115,9 +168,10 @@ Main<-function(){
   
   #descision variables
   plot <- FALSE #whether it should plot
-  init <- TRUE #whether we should still initialize
-  reload <- TRUE # reloads everything
-  benchSwitch <- TRUE #whether the benchmark should be runned
+  init <- FALSE #whether we should still initialize
+  reload <- FALSE # reloads everything
+  benchSwitch <- FALSE #whether the benchmark should be runned
+  normalSwitch<- TRUE #whether the normal should be runned
   
   
     
@@ -128,16 +182,15 @@ Main<-function(){
   }
   #preprocesses all data 
   if(init){
+    mydata$time<-strptime(mydata$time, "%Y-%m-%d %H:%M:%OS")
     mydata$day<-strptime(mydata[,3], "%Y-%m-%d")
     
-    mydata$timeOfDay<-strptime(mydata$time, "%Y-%m-%d %H:%M:%OS")
-    mydata$hourOfDay<-format(mydata$timeOfDay, format="%H")
-    mydata$timeOfDay<-format(mydata$timeOfDay, format="%H:%M:%S")
+    mydata$hourOfDay<-format(mydata$time, format="%H")
+    mydata$timeOfDay<-format(mydata$time, format="%H:%M:%S")
     
     mydata$weekday<-weekdays(mydata$day)
     mydata$partOfDay <- AssignPartOfDay(mydata$hourOfDay)
   }
-  
 
   
   #Begin the sorting and plotting
@@ -145,7 +198,10 @@ Main<-function(){
   
   #begin the prediction algorithms
   Benchmark(mydata, benchSwitch)
-  
+
+  chosenDays<-PreprocessData(mydata)# variable to select the days we want to use per users (in case of too big differences)
+  #print(chosenDays)
+  NormalLearning(mydata,chosenDays, normalSwitch)
   
   print("FINISHED")
 }
