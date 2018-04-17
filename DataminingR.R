@@ -57,6 +57,8 @@ PreprocessData<-function(mydata){#preprocesses for the learning algorithm
   uniqueUsers<-unique(mydata$id)
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
   day<-as.POSIXct(Sys.Date())
+  daySpot<-c()
+  daysBack<-c()
   id<-c()
   moodList <- mydata[mydata$variable=="mood",]
   #notMoodList <- mydata[mydata$variable!="mood",]
@@ -66,13 +68,30 @@ PreprocessData<-function(mydata){#preprocesses for the learning algorithm
     #notTempDays<-as.character(unique(notMoodList[notMoodList$id==user,]$day))
     #print(notTempDays)
     for(i in 6:length(tempDays)){
-      #if(! (as.character(tempDays[i]) %in% notTempDays)){print("only mood")}
+      skip<-FALSE
       counter<- counter+1
+      #if(! (as.character(tempDays[i]) %in% notTempDays)){print("only mood")}
+      for(j in 3:5){
+        if(difftime(tempDays[i],tempDays[i-j], units="days")<=10)
+        {
+          daysBack[counter]<-j
+        }
+        else{
+          if(j==3)
+            skip<-TRUE
+          break
+        }
+      }
+      if(skip){
+        next
+        counter<- counter-1
+      }
       day[counter]<-tempDays[i]
+      daySpot[counter]<-i #place of the day in the tempDays(!!MUST BE ORDERED TO WORK!!)
       id[counter]<-user
     }
   }
-  return(data.frame(id,day))
+  return(data.frame(id,day,daySpot,daysBack))
 }
 
 
@@ -136,7 +155,7 @@ MultinomPreprocess<-function(mydata, chosenDays){
 }
 
 MultinomLearning<-function(mydata, chosenDays, MultinomSwitch){
-  if(normalSwitch)
+  if(MultinomSwitch)
   {
     MultinomData<-MultinomPreprocess(mydata,chosenDays)
   }
@@ -192,12 +211,15 @@ Main<-function(){
   #Begin the sorting and plotting
   ReconPlot(mydata, plot)
   
+  
+  chosenDays<-PreprocessData(mydata)# variable to select the days we want to use per users (in case of too big differences)
+  
+  print(head(chosenDays))
   #begin the prediction algorithms
   Benchmark(mydata, benchSwitch)
 
-  chosenDays<-PreprocessData(mydata)# variable to select the days we want to use per users (in case of too big differences)
   #print(chosenDays)
-  MultinomLearning(mydata,chosenDays, MultinomSwitch)
+  MultinomLearning(mydata, chosenDays, MultinomSwitch)
   
   print("FINISHED")
 }
