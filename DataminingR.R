@@ -53,28 +53,27 @@ ReconPlot<-function(mydata, plot){
   }
 }
 
-PreprocessData<-function(mydata){#preprocesses for the learning algorithm
+ChooseData<-function(mydata){#preprocesses for the learning algorithm
   uniqueUsers<-unique(mydata$id)
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
   day<-as.POSIXct(Sys.Date())
   daySpot<-c()
-  daysBack<-c()
+  daysBackMood<-c()
+  daysBackActual<-c()
   id<-c()
   moodList <- mydata[mydata$variable=="mood",]
-  #notMoodList <- mydata[mydata$variable!="mood",]
   counter<-0
   for(user in uniqueUsers){
     tempDays <- unique(moodList[moodList$id==user,]$day)
-    #notTempDays<-as.character(unique(notMoodList[notMoodList$id==user,]$day))
-    #print(notTempDays)
+    tempAllDays<- as.character(unique(mydata[mydata$id==user,]$day))
     for(i in 6:length(tempDays)){
       skip<-FALSE
       counter<- counter+1
-      #if(! (as.character(tempDays[i]) %in% notTempDays)){print("only mood")}
       for(j in 3:5){
         if(difftime(tempDays[i],tempDays[i-j], units="days")<=10)
         {
-          daysBack[counter]<-j
+          daysBackMood[counter]<-j
+          daysBackActual[counter]<-grep(as.character(tempDays[i]),tempAllDays)-grep(as.character(tempDays[i-j]),tempAllDays)
         }
         else{
           if(j==3)
@@ -91,16 +90,18 @@ PreprocessData<-function(mydata){#preprocesses for the learning algorithm
       id[counter]<-user
     }
   }
-  return(data.frame(id,day,daySpot,daysBack))
+  return(data.frame(id,day,daySpot,daysBackMood,daysBackActual))
 }
 
 
 #Benchmark algorithms ##
-BenchmarkPreprocess<-function(mydata){ #only get the mean mood of the previous recorded day
+BenchmarkPreprocess<-function(mydata, chosenDays){ #only get the mean mood of the previous recorded day
   
   uniqueUsers<-unique(mydata$id)
   
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
+  chosenDays<-chosenDays[order(chosenDays$day),]
+  
   prevMood<-c()#colnames(list())<-c("prevMood","todayMood")
   todayMood<-c()
   difference<-c()
@@ -109,62 +110,101 @@ BenchmarkPreprocess<-function(mydata){ #only get the mean mood of the previous r
   for(user in uniqueUsers){
     dataForUser<-moodList[moodList$id==user,]
     tempDays <- unique(dataForUser$day)
-    for(i in 2:length(tempDays)){
-      #chance to skip days here when too much space between (might be prepreprocess though)
-      if(TRUE){
-        counter<- counter+1
-        prevMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i-1],]$value)
-        todayMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i],]$value)
-        difference[counter]<-abs(prevMood[counter]-todayMood[counter])
-      }
+    chosenDaysUser<-chosenDays[chosenDays$id==user,]
+    for(i in 1:length(chosenDaysUser)){
+      counter<- counter+1
+      now<-chosenDaysUser$daySpot[i]
+      prevMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[now-1],]$value)
+      todayMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[now],]$value)
+      difference[counter]<-abs(prevMood[counter]-todayMood[counter])
     }
   }
   return(data.frame(prevMood,todayMood,difference))
 }
 
-Benchmark<-function(mydata, benchSwitch){
+Benchmark<-function(mydata, benchSwitch, chosenDays){
   if(benchSwitch)
   {
-    benchData<-BenchmarkPreprocess(mydata)
+    benchData<-BenchmarkPreprocess(mydata,chosenDays)
+    print("BENCHMARK")  
+    
     print(summary(benchData$difference))
     print(stat.desc(benchData$difference))
     #print(benchData)
   }
 }
 
-#Normal algorithms ##
+#Multinom algorithms ##
 MultinomPreprocess<-function(mydata, chosenDays){
-  uniqueUsers<-unique(mydata$id)
+  uniqueUsers<-unique(chosenDays$id)
   
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
-  prevMood<-c()#colnames(list())<-c("prevMood","todayMood")
+  chosenDays<-chosenDays[order(chosenDays$day),]
+  
+  #all used variables
+  prevMood<-c()
+  prevMood1<-c()
+  prevMood2<-c()
+  prevMood3<-c()
   todayMood<-c()
-  difference<-c()
+  
   moodList <- mydata[mydata$variable=="mood",]
   counter<-0
   for(user in uniqueUsers){
-    dataForUser<-moodList[moodList$id==user,]
-    tempDays <- unique(dataForUser$day)
-    for(i in length(tempDays)){
+    chosenDaysUser<-chosenDays[chosenDays$id==user,]
+    dataForUserMood<-moodList[moodList$id==user,]
+    tempDaysMood <- unique(dataForUserMood$day)
+    for(i in 1:length(chosenDaysUser)){
         counter<- counter+1
-        prevMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i-1],]$value)
-        todayMood[counter]<-mean(dataForUser[dataForUser$day== tempDays[i],]$value)
-        difference[counter]<-abs(prevMood[counter]-todayMood[counter])
+        tempMood<-c()
+        now<-chosenDaysUser$daySpot[i]
+        for( j in 1:chosenDaysUser$daysBackMood[i]){
+          tempMood[j]<-mean(dataForUserMood[dataForUserMood$day==tempDaysMood[now-j],]$value)
+        }
+        prevMood1[counter]<-mean(dataForUserMood[dataForUserMood$day==tempDaysMood[now-1],]$value)
+        prevMood2[counter]<-mean(dataForUserMood[dataForUserMood$day==tempDaysMood[now-2],]$value)
+        prevMood3[counter]<-mean(dataForUserMood[dataForUserMood$day==tempDaysMood[now-3],]$value)
+        prevMood[counter]<-mean(tempMood)
+        todayMood[counter]<-mean(dataForUserMood[dataForUserMood$day== tempDaysMood[now],]$value)
     }
   }
+  return(data.frame(prevMood1,prevMood2,prevMood3,prevMood,todayMood))
 }
 
 MultinomLearning<-function(mydata, chosenDays, MultinomSwitch){
   if(MultinomSwitch)
   {
-    MultinomData<-MultinomPreprocess(mydata,chosenDays)
+    multinomData<-MultinomPreprocess(mydata,chosenDays)
+    
+    #Lm function
+    funclm<- lm(todayMood~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    predlm <- predict(funclm, multinomData)
+    differencelm<-(abs(predlm-multinomData$todayMood))
+    
+    #polr function
+    funcpolr <- polr(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    predpolr <- predict(funcpolr, multinomData)
+    differencepolr<-(abs(as.numeric(levels(predpolr))[predpolr]-multinomData$todayMood))
+    
+    #multinom function
+    funcmult <- multinom(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    predmult <- predict(funcmult, multinomData)
+    differencemult<-(abs(as.numeric(levels(predmult))[predmult]-multinomData$todayMood))
+    
+    print("LM")
+    print(stat.desc(differencelm))
+    print(summary(funclm))
+    print("POLR")
+    print(stat.desc(differencepolr))
+    print("MULTINOM")  
+    print(stat.desc(differencemult))
+    #print(summary(funcmult))
   }
 }
 
 
 ################### MAIN #######################
 Main<-function(){
-  
   #Required packages
   while(!require('ggplot2'))
     install.packages('ggplot2')
@@ -174,7 +214,11 @@ Main<-function(){
     install.packages('tseries') 
   while(!require('pastecs'))
     install.packages('pastecs')
-
+  while(!require('nnet'))
+    install.packages('nnet')
+  while(!require('MASS'))
+    install.packages('MASS')
+  
   
   #constants (often for sorting purposes)
   DaysOfTheWeek<<-c( "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
@@ -185,18 +229,21 @@ Main<-function(){
   plot <- TRUE #whether it should plot
   init <- FALSE #whether we should still initialize
   reload <- FALSE # reloads everything
-  benchSwitch <- FALSE #whether the benchmark should be runned
+  benchSwitch <- TRUE #whether the benchmark should be runned
   MultinomSwitch<- TRUE #whether the normal should be runned
   
   
     
   #Check if the Data has already been read otherwise it will load
   if(!exists("mydata")||is.null(mydata)||reload){
+    print("Load")
     init=TRUE
     mydata <- read.csv("dataset_mood_smartphone.csv")
+    
   }
   #preprocesses all data 
   if(init){
+    print("Init")
     mydata$time<-strptime(mydata$time, "%Y-%m-%d %H:%M:%OS")
     mydata$day<-strptime(mydata[,3], "%Y-%m-%d")
     
@@ -206,22 +253,19 @@ Main<-function(){
     mydata$weekday<-weekdays(mydata$day)
     mydata$partOfDay <- AssignPartOfDay(mydata$hourOfDay)
   }
-
+  
   
   #Begin the sorting and plotting
   ReconPlot(mydata, plot)
   
+  chosenDays<-ChooseData(mydata)# variable to select the days we want to use per users (in case of too big differences)
   
-  chosenDays<-PreprocessData(mydata)# variable to select the days we want to use per users (in case of too big differences)
-  
-  print(head(chosenDays))
   #begin the prediction algorithms
-  Benchmark(mydata, benchSwitch)
-
+  Benchmark(mydata, benchSwitch, chosenDays)
+  
   #print(chosenDays)
   MultinomLearning(mydata, chosenDays, MultinomSwitch)
   
   print("FINISHED")
 }
-
 Main()
