@@ -69,13 +69,9 @@ PreprocessData<-function(mydata){#preprocesses for the learning algorithm
       #if(! (as.character(tempDays[i]) %in% notTempDays)){print("only mood")}
       counter<- counter+1
       day[counter]<-tempDays[i]
-      print(day)
       id[counter]<-user
     }
-    break
   }
-  print(head(day))
-  print(head(data.frame(id,day)))
   return(data.frame(id,day))
 }
 
@@ -118,7 +114,7 @@ Benchmark<-function(mydata, benchSwitch){
 }
 
 #Normal algorithms ##
-NormalPreprocess<-function(mydata, chosenDays){
+MultinomPreprocess<-function(mydata, chosenDays){
   uniqueUsers<-unique(mydata$id)
   
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
@@ -139,10 +135,10 @@ NormalPreprocess<-function(mydata, chosenDays){
   }
 }
 
-NormalLearning<-function(mydata, chosenDays, normalSwitch){
+MultinomLearning<-function(mydata, chosenDays, MultinomSwitch){
   if(normalSwitch)
   {
-    normalData<-NormalPreprocess(mydata,chosenDays)
+    MultinomData<-MultinomPreprocess(mydata,chosenDays)
   }
 }
 
@@ -171,7 +167,7 @@ Main<-function(){
   init <- FALSE #whether we should still initialize
   reload <- FALSE # reloads everything
   benchSwitch <- FALSE #whether the benchmark should be runned
-  normalSwitch<- TRUE #whether the normal should be runned
+  MultinomSwitch<- TRUE #whether the normal should be runned
   
   
     
@@ -201,7 +197,7 @@ Main<-function(){
 
   chosenDays<-PreprocessData(mydata)# variable to select the days we want to use per users (in case of too big differences)
   #print(chosenDays)
-  NormalLearning(mydata,chosenDays, normalSwitch)
+  MultinomLearning(mydata,chosenDays, MultinomSwitch)
   
   print("FINISHED")
 }
