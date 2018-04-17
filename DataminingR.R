@@ -39,17 +39,17 @@ ReconPlot<-function(mydata, plot){
     boxplot(value~weekday,data=mydata[mydata$variable=="mood", ], main="",
             xlab="Part of the Day", ylab="Mood", col="deepskyBlue")
     #extra violinPlot
-    print(ggplot(mydata[mydata$variable=="mood", ], aes(weekday, value)) +
-            geom_violin(aes(fill = weekday)))
+    #print(ggplot(mydata[mydata$variable=="mood", ], aes(weekday, value)) +
+     #       geom_violin(aes(fill = weekday)))
     
     #plot of the time of day
-    mydata$PartOfDay <- factor(mydata$partOfDay, levels=PartsOfTheDay)
-    mydata<-mydata[order(mydata$partOfDay), ]
-    boxplot(value~partOfDay,data=mydata[mydata$variable=="mood", ], main="",
-            xlab="Part of the Day", ylab="Mood",col="darkorchid")
+    #mydata$PartOfDay <- factor(mydata$partOfDay, levels=PartsOfTheDay)
+    #mydata<-mydata[order(mydata$partOfDay), ]
+    #boxplot(value~partOfDay,data=mydata[mydata$variable=="mood", ], main="",
+    #        xlab="Part of the Day", ylab="Mood",col="darkorchid")
     #extra violinPlot
-    print(ggplot(mydata[mydata$variable=="mood", ], aes(partOfDay, value)) +
-            geom_violin(aes(fill = partOfDay)))
+    #print(ggplot(mydata[mydata$variable=="mood", ], aes(partOfDay, value)) +
+     #       geom_violin(aes(fill = partOfDay)))
   }
 }
 
@@ -182,7 +182,7 @@ Main<-function(){
   PartsOfTheDay<<-c("Morning","Afternoon","Evening","Night")
   
   #descision variables
-  plot <- FALSE #whether it should plot
+  plot <- TRUE #whether it should plot
   init <- FALSE #whether we should still initialize
   reload <- FALSE # reloads everything
   benchSwitch <- FALSE #whether the benchmark should be runned
