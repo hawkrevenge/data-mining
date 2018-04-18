@@ -95,6 +95,8 @@ ChooseData<-function(mydata){#preprocesses for the learning algorithm
             skip<-TRUE
           break
         }
+        if(i-j==1)
+          break
       }
       if(skip){
         next
@@ -154,7 +156,7 @@ MultinomPreprocess<-function(mydata, chosenDays){
   uniqueUsers<-unique(chosenDays$id)
   
   mydata<-mydata[order(mydata$time),] #order by time just to be sure
-  chosenDays<-chosenDays[order(chosenDays$day),]
+  #chosenDays<-chosenDays[order(chosenDays$day),]
   
   #all used variables
   prevMood<-c()
@@ -162,14 +164,19 @@ MultinomPreprocess<-function(mydata, chosenDays){
   prevMood2<-c()
   prevMood3<-c()
   todayMood<-c()
+  prevValence<-c()
+  todayValence<-c()
   
   moodList <- mydata[mydata$variable=="mood",]
   counter<-0
   for(user in uniqueUsers){
+    #print(user)
     chosenDaysUser<-chosenDays[chosenDays$id==user,]
     dataForUserMood<-moodList[moodList$id==user,]
+    dataForUser<-mydata[mydata$id==user,]
     tempDaysMood <- unique(dataForUserMood$day)
-    for(i in 1:length(chosenDaysUser)){
+    tempDays<-unique(dataForUser$day)
+    for(i in 1:length(chosenDaysUser$day)){
         counter<- counter+1
         tempMood<-c()
         now<-chosenDaysUser$daySpot[i]
@@ -181,34 +188,59 @@ MultinomPreprocess<-function(mydata, chosenDays){
         prevMood3[counter]<-mean(dataForUserMood[dataForUserMood$day==tempDaysMood[now-3],]$value)
         prevMood[counter]<-mean(tempMood)
         todayMood[counter]<-mean(dataForUserMood[dataForUserMood$day== tempDaysMood[now],]$value)
+
+        tempValence<-c()
+        valenceData<-dataForUser[dataForUser$variable=="circumplex.valence"&complete.cases(dataForUser$value),]
+        counterj<-0
+        for( j in 1:chosenDaysUser$daysBackActual[i]){
+          counterj<-1+counterj
+          tempVal<-valenceData[valenceData$day==tempDays[now-j],]$value
+            if(length(tempVal)>0)
+              tempValence[counterj]<-mean(tempVal)
+            else
+              counterj<-counterj-1
+        }
+        if(length(tempValence)>0)
+          prevValence[counter]<-mean(tempValence)
+        else
+          prevValence[counter]<-(0)
+        if(length(valenceData[valenceData$day==tempDays[now],]$value)>0)
+          todayValence[counter]<-mean(valenceData[valenceData$day==tempDays[now],]$value)
+        else
+          todayValence[counter]<-0
     }
   }
-  return(data.frame(prevMood1,prevMood2,prevMood3,prevMood,todayMood))
+  return(data.frame(prevMood1,prevMood2,prevMood3,prevMood,todayMood,prevValence,todayValence))
 }
 
 MultinomLearning<-function(mydata, chosenDays, MultinomSwitch){
   if(MultinomSwitch)
   {
     multinomData<-MultinomPreprocess(mydata,chosenDays)
-    
+    print(dim(multinomData))
     #Lm function
-    funclm<- lm(todayMood~ prevMood1+prevMood2+prevMood3, data=multinomData)
-    predlm <- predict(funclm, multinomData)
-    differencelm<-(abs(predlm-multinomData$todayMood))
+    funclm1<- lm(todayMood~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    predlm1 <- predict(funclm1, multinomData)
+    differencelm1<-(abs(predlm1-multinomData$todayMood))
+    
+    funclm2<- lm(todayMood~ prevMood1+prevMood2+prevMood3+prevValence+todayValence, , data=multinomData)
+    predlm2 <- predict(funclm2, multinomData)
+    differencelm2<-(abs(predlm2-multinomData$todayMood))
     
     #polr function
-    funcpolr <- polr(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    funcpolr <- polr(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3+prevValence+todayValence, data=multinomData)
     predpolr <- predict(funcpolr, multinomData)
     differencepolr<-(abs(as.numeric(levels(predpolr))[predpolr]-multinomData$todayMood))
     
     #multinom function
-    funcmult <- multinom(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3, data=multinomData)
+    funcmult <- multinom(as.factor(todayMood)~ prevMood1+prevMood2+prevMood3+prevValence+todayValence, data=multinomData)
     predmult <- predict(funcmult, multinomData)
     differencemult<-(abs(as.numeric(levels(predmult))[predmult]-multinomData$todayMood))
     
     print("LM")
-    print(stat.desc(differencelm))
-    print(summary(funclm))
+    print(stat.desc(differencelm1))
+    print(stat.desc(differencelm2))
+    #print(summary(funclm))
     print("POLR")
     print(stat.desc(differencepolr))
     print("MULTINOM")  
