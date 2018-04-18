@@ -22,6 +22,13 @@ AssignPartOfDay<-function(vctr)
   return(returnvctr)
 }
 
+
+#RMSE FUNCTION
+RMSE <- function(error)
+{
+  sqrt(mean(error^2))
+}
+
 #sorts the list by a column of ones choice
 Sort<-function(unsorted, sortBy, level=NULL){
   if(!is.null(level))
@@ -63,20 +70,22 @@ ChooseData<-function(mydata){#preprocesses for the learning algorithm
   id<-c()
   moodList <- mydata[mydata$variable=="mood",]
   counter<-0
+  testCounter<-0
   for(user in uniqueUsers){
     tempDays <- unique(moodList[moodList$id==user,]$day)
     tempAllDays<- as.character(unique(mydata[mydata$id==user,]$day))
-    for(i in 6:length(tempDays)){
+    for(i in 5:length(tempDays)){
       skip<-FALSE
       counter<- counter+1
-      for(j in 3:5){
-        if(difftime(tempDays[i],tempDays[i-j], units="days")<=10)
+      for(j in 4:5){
+        (print)
+        if(difftime(tempDays[i],tempDays[i-j], units="days")<=5)
         {
           daysBackMood[counter]<-j
           daysBackActual[counter]<-grep(as.character(tempDays[i]),tempAllDays)-grep(as.character(tempDays[i-j]),tempAllDays)
         }
         else{
-          if(j==3)
+          if(j==4)
             skip<-TRUE
           break
         }
@@ -84,8 +93,11 @@ ChooseData<-function(mydata){#preprocesses for the learning algorithm
           break
       }
       if(skip){
-        next
         counter<- counter-1
+        next
+      }
+      else{
+        testCounter<-testCounter+1
       }
       day[counter]<-tempDays[i]
       daySpot[counter]<-i #place of the day in the tempDays(!!MUST BE ORDERED TO WORK!!)
@@ -130,6 +142,8 @@ Benchmark<-function(mydata, benchSwitch, chosenDays){
     benchData<-BenchmarkPreprocess(mydata,chosenDays)
     print("BENCHMARK")  
     
+    print("RMSE")
+    print(RMSE(benchData$difference))
     print(summary(benchData$difference))
     print(stat.desc(benchData$difference))
     #print(benchData)
@@ -186,7 +200,9 @@ MultinomPreprocess<-function(mydata, chosenDays){
               counterj<-counterj-1
         }
         if(length(tempValence)>0)
+        {
           prevValence[counter]<-mean(tempValence)
+        }
         else
           prevValence[counter]<-(0)
         if(length(valenceData[valenceData$day==tempDays[now],]$value)>0)
@@ -225,11 +241,13 @@ MultinomLearning<-function(mydata, chosenDays, MultinomSwitch){
     print("LM")
     print(stat.desc(differencelm1))
     print(stat.desc(differencelm2))
-    #print(summary(funclm))
-    print("POLR")
-    print(stat.desc(differencepolr))
-    print("MULTINOM")  
-    print(stat.desc(differencemult))
+    print(summary(funclm1))
+    print(summary(funclm2))
+    
+    #print("POLR")
+    #print(stat.desc(differencepolr))
+    #print("MULTINOM")  
+    #print(stat.desc(differencemult))
     #print(summary(funcmult))
   }
 }
