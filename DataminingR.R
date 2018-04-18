@@ -32,24 +32,39 @@ Sort<-function(unsorted, sortBy, level=NULL){
 #function for the first plots
 ReconPlot<-function(mydata, plot){
   if(plot){
+    # merge databse
+    mydata_mood <- mydata[mydata$variable=="mood",]
+    mydata_arousal <- mydata[mydata$variable=="circumplex.arousal",]
+    total_arousal <- merge(mydata_mood, mydata_arousal, by=c("id","time"))
+    boxplot(value.x~value.y, data=total_arousal,  main="",
+            xlab="Arousal", ylab="Mood", col="deepskyBlue",cex.axis=0.8)
+       
+    
+    mydata_valence <- mydata[mydata$variable=="circumplex.valence",]
+    total_valence <- merge(mydata_mood, mydata_valence, by=c("id","time"))
+    means <- aggregate(value.x~value.y, total_valence, mean)
+    boxplot(value.x~value.y, data=total_valence, main="",
+            xlab="Valence", ylab="Mood", col="deepskyBlue", cex.axis=0.8)
+    points(1:5, means$value.x, col = "red")
+     
     print("Begin Plotting")
     #plot of the weekdays:
-    mydata$weekday <- factor(mydata$weekday, levels=DaysOfTheWeek)
-    mydata<-mydata[order(mydata$weekday), ]
+    #mydata$weekday <- factor(mydata$weekday, levels=DaysOfTheWeek)
+    #mydata<-mydata[order(mydata$weekday), ]
     boxplot(value~weekday,data=mydata[mydata$variable=="mood", ], main="",
-            xlab="Part of the Day", ylab="Mood", col="deepskyBlue")
+            xlab="Part of the Day", ylab="Mood", col="deepskyBlue", las=2, cex.axis=0.5)
     #extra violinPlot
-    #print(ggplot(mydata[mydata$variable=="mood", ], aes(weekday, value)) +
-     #       geom_violin(aes(fill = weekday)))
+    print(ggplot(mydata[mydata$variable=="mood", ], aes(weekday, value)) +
+            geom_violin(aes(fill = weekday)))
     
     #plot of the time of day
     #mydata$PartOfDay <- factor(mydata$partOfDay, levels=PartsOfTheDay)
     #mydata<-mydata[order(mydata$partOfDay), ]
-    #boxplot(value~partOfDay,data=mydata[mydata$variable=="mood", ], main="",
-    #        xlab="Part of the Day", ylab="Mood",col="darkorchid")
+    boxplot(value~partOfDay,data=mydata[mydata$variable=="mood", ], main="",
+            xlab="Part of the Day", ylab="Mood",col="darkorchid", las=2, cex.axis=0.5)
     #extra violinPlot
-    #print(ggplot(mydata[mydata$variable=="mood", ], aes(partOfDay, value)) +
-     #       geom_violin(aes(fill = partOfDay)))
+    print(ggplot(mydata[mydata$variable=="mood", ], aes(partOfDay, value)) +
+            geom_violin(aes(fill = partOfDay)))
   }
 }
 
@@ -252,7 +267,12 @@ Main<-function(){
     
     mydata$weekday<-weekdays(mydata$day)
     mydata$partOfDay <- AssignPartOfDay(mydata$hourOfDay)
+    
+    # delete negative time variables
+    mydata_new <- subset(mydata,(variable=="appCat.game" |variable=="appCat.finance" | variable=="appCat.entertainment" | variable=="appCat.communication" | variable=="appCat.builtin" | variable=="appCat.other" | variable=="appCat.social" | variable=="appCat.travel" | variable=="appCat.unknown" | variable=="appCat.utilities" | variable=="appCat.weather"   ) & (value<0 | value > 20000 ))
   }
+  
+  # data aggregate
   
   
   #Begin the sorting and plotting
