@@ -28,15 +28,15 @@ datatest.folder  <-
     "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
   }
 
-expedia.data <- fread(datatraining.folder, header=TRUE)       # 32 seconde bij Emma
-expedia.test <- fread(datatest.folder, header=TRUE)   # 37 seconde bij Emma
+expedia.data <- fread(datatraining.folder, header=TRUE)       # 31 seconde bij Emma
+expedia.test <- fread(datatest.folder, header=TRUE)   # 28 seconde bij Emma
 
 ############################################
 ## Exploring dataset
 ############################################
 
 dim(expedia.data)
-dim(expedia.predict)
+dim(expedia.test)
 str(expedia.data)
-#summary(expedia.data)
+summary(expedia.test)
 
