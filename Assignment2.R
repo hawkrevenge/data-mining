@@ -3,11 +3,16 @@
 ############################################
 
 # Libraries
-library(data.table)  
-library(ggplot2)    
-library(dplyr)
-library(emil)
-library(magrittr)
+while(!require('data.table'))
+  install.packages('data.table')
+while(!require('ggplot2'))
+  install.packages('ggplot2')
+while(!require('dplyr'))
+  install.packages('dplyr')
+while(!require('emil'))
+  install.packages('emil')
+while(!require('magrittr'))
+  install.packages('magrittr')
 
 
 ############################################
@@ -17,7 +22,7 @@ datatraining.folder  <-
   if(grepl("Michael", getwd())) {
     "C:/Users/Michael"
   } else if(grepl("Roel", getwd())) {
-    "/Users/Roel"
+    "training_set_VU_DM_2014.csv"
   } else if(grepl("Emma", getwd())) {
     "/Users/Emma/Downloads/Data Mining VU data/training_set_VU_DM_2014.csv"
   }
@@ -27,13 +32,13 @@ datatest.folder  <-
   if(grepl("Michael", getwd())) {
     "C:/Users/Michael"
   } else if(grepl("Roel", getwd())) {
-    "/Users/Roel"
+    "test_set_VU_DM_2014.csv"
   } else if(grepl("Emma", getwd())) {
     "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
   }
 
-expedia.data <- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma
-expedia.test <- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma
+expedia.data <- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
+expedia.test <- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
 
 ############################################
 ## Exploring dataset
