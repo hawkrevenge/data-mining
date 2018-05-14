@@ -3,6 +3,7 @@
 ############################################
 
 # Libraries
+Main<-function(){
 while(!require('data.table'))
   install.packages('data.table')
 while(!require('ggplot2'))
@@ -14,10 +15,23 @@ while(!require('emil'))
 while(!require('magrittr'))
   install.packages('magrittr')
 
+# Set switches 
+exploreSwitch <- TRUE
+loadingSwitch <- FALSE
+
+loading(loadingSwitch)
+exploring(exploreSwitch)
+
+  
+}
 
 ############################################
 ## Loading dataset for each user
 ############################################
+
+loading<-function(loadingSwitch){
+  if(loadingSwitch)
+  {
 datatraining.folder  <- 
   if(grepl("Michael", getwd())) {
     "C:/Users/Michael"
@@ -39,10 +53,15 @@ datatest.folder  <-
 
 expedia.data <- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
 expedia.test <- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
-
+  }
+}
 ############################################
 ## Exploring dataset
 ############################################
+
+exploring<-function(exploringSwitch){
+  if(exploringSwitch)
+  {
 # number of unique properties/id in data
 expedia.data %>%
   group_by(prop_id) %>%
@@ -68,10 +87,28 @@ setdiff(expedia.data$prop_id, expedia.test$prop_id) %>%
 setdiff(expedia.test$prop_id, expedia.data$prop_id) %>%
   length()
 
-# count number of bookings per prop id
-expedia.data %>%
-  group_by(prop_id) %>%
-  summarise(n_distinct(srch_id))
+# count number of prop id per search id's 
+prop_per_srch <- expedia.data %>%
+  group_by(srch_id) %>%
+  summarise(n_distinct(prop_id))
+
+# number of property id's that has at least 1 booking
+booking_numb <- aggregate(booking_bool ~ prop_id, data = expedia.data, FUN = sum)
+nrow(booking_numb[booking_numb$booking_bool != 0,])
+# number of property id's that has at least 1 click
+click_numb <-   aggregate(click_bool ~ prop_id, data = expedia.data, FUN = sum)
+nrow(click_numb[click_numb$click_bool != 0,])
+
+
+# Some plots of variables
+df <- aggregate( booking_bool ~ site_id, data = expedia.data, FUN = length)
+ggplot(df, aes(x=site_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+df <- aggregate( booking_bool ~ visitor_location_country_id, data = expedia.data, FUN = length)
+ggplot(df, aes(x=visitor_location_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+df <- aggregate( booking_bool ~ prop_country_id, data = expedia.data, FUN = length)
+ggplot(df, aes(x=prop_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 
 # see into data
@@ -87,13 +124,10 @@ df1$rank <- df1$rank / 4958347
 df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
 ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-
-############################################
-## Vizualisation
-############################################
 # What days of the week are people booking?
 expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
 ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
-
+  }
+}
 
 
