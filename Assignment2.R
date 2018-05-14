@@ -38,7 +38,16 @@ expedia.test <- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 2
 ############################################
 ## Exploring dataset
 ############################################
-# number of unique properties/id
+# number of unique properties/id in data
+expedia.data %>%
+  group_by(prop_id) %>%
+  summarise(n_distinct(srch_id))
+
+expedia.data %>%
+  group_by(srch_id) %>%
+  summarise(n_distinct(prop_id))
+
+# number of unique properties/id in test
 expedia.test %>%
   group_by(prop_id) %>%
   summarise(n_distinct(srch_id))
@@ -46,6 +55,19 @@ expedia.test %>%
 expedia.test %>%
   group_by(srch_id) %>%
   summarise(n_distinct(prop_id))
+
+# length of property id's that are in data set but not in testset 
+setdiff(expedia.data$prop_id, expedia.test$prop_id) %>%
+  length()
+# length of property id's that are in test set but not in trainingset 
+setdiff(expedia.test$prop_id, expedia.data$prop_id) %>%
+  length()
+
+# count number of bookings per prop id
+expedia.data %>%
+  group_by(prop_id) %>%
+  summarise(n_distinct(srch_id))
+
 
 # see into data
 dim(expedia.data)
@@ -67,5 +89,6 @@ ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text
 # What days of the week are people booking?
 expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
 ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
+
 
 
