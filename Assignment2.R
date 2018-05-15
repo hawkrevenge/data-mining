@@ -21,7 +21,9 @@ while(!require('magrittr'))
     install.packages('MASS')
   while(!require('sjlabelled'))
     install.packages('sjlabelled')
-
+  while(!require('tidyr'))
+    install.packages('tidyr')
+  
 
 
 # Set switches 
@@ -41,7 +43,7 @@ exploring(exploreSwitch)
 loading<-function(loadingSwitch){
   if(loadingSwitch)
   {
-datatraining.folder  <- 
+datatraining.folder  <<- 
   if(grepl("Michael", getwd())) {
     "C:/Users/Michael"
   } else if(grepl("Roel", getwd())) {
@@ -51,7 +53,7 @@ datatraining.folder  <-
   }
 
 
-datatest.folder  <- 
+datatest.folder  <<- 
   if(grepl("Michael", getwd())) {
     "C:/Users/Michael"
   } else if(grepl("Roel", getwd())) {
@@ -136,6 +138,14 @@ df <- sapply(expedia.data, function(x) sum(is.na(x)))
 df1 <- data.frame(name = names(df), rank = df) 
 df1 <- df1[order(df1$rank),]
 df1$rank <- df1$rank / 4958347
+df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
+ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+df <- sapply(input_data, function(x) sum(is.na(x)))
+df1 <- data.frame(name = names(df), rank = df) 
+df1 <- df1[order(df1$rank),]
+df1$rank <- df1$rank
 df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
 ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
@@ -230,9 +240,6 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     
     # Cbind the existing data
     input_data = input_data %>% 
-      #dplyr::select(-ends_with("inv")) %>% 
-      #dplyr::select(-ends_with("rate")) %>% 
-      #dplyr::select(-ends_with("rate_percent_diff")) %>% 
       cbind(comp_rate_missing) %>% 
       cbind(comp_inv_missing) %>% 
       cbind(comp_rate_percent_missing)
@@ -243,121 +250,88 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     # Message
     message("Finished working on competitor features...")
     
+    # - - - - - - - - - - - - - - - 
+    # Fix prop review score
+    # - - - - - - - - - - - - - - -
+    # Set the prop_review_score to the minimum value across all scores
+    message("Working on prop_review_score feature...")
+    input_data = input_data %>% 
+      group_by(srch_destination_id) %>% 
+      replace_na(list(prop_review_score = min(.$prop_review_score, na.rm = T))) %>% 
+      ungroup()
+    
+    # - - - - - - - - - - - - - - - 
+    # Fix visitor history
+    # - - - - - - - - - - - - - - -
+    # Replace NA values with the mean starrating across the origin
+    message("Working on visior history...")
+    input_data = input_data %>% 
+      replace_na(list(visitor_hist_starrating = mean(.$visitor_hist_starrating, na.rm = T)))
+    input_data$starr_dif <- (input_data$visitor_hist_starrating - input_data$prop_starrating)
+      
+
+    # Replace NA values with the mean price across the origin
+    message("Working on visior history...")
+    input_data = input_data %>% 
+      replace_na(list(visitor_hist_adr_usd = mean(.$visitor_hist_adr_usd, na.rm = T)))
+    input_data$price_dif <- (input_data$visitor_hist_adr_usd - input_data$price_usd)
+    
+    
+    # - - - - - - - - - - - - - - - 
+    # Fix srch_query_affinity_score
+    # - - - - - - - - - - - - - - -
+    # Replace NA values with the mean distances across the origin
+    message("Working on srch_query_affinity_score...")
+    input_data = input_data %>% 
+      replace_na(list(srch_query_affinity_score = 0))
+    # - - - - - - - - - - - - - - - 
+    # Fix location score #2 values
+    # - - - - - - - - - - - - - - -
+    # Set the location score #2 to the minimum value across all scores
+    message("Working on prop_location_score feature...")
+    input_data = input_data %>% 
+      group_by(srch_destination_id) %>% 
+      replace_na(list(prop_location_score2 = min(.$prop_location_score2, na.rm = T))) %>% 
+      ungroup()
     
     # - - - - - - - - - - - - - - - 
     # Fix origin distance values
     # - - - - - - - - - - - - - - -
     # Replace NA values with the mean distances across the origin
     message("Working on origin distance feature...")
-    input_data = input_data %>% 
-      replace_na(list(orig_destination_distance = median(.$orig_destination_distance, na.rm = T)))
+      input_data = input_data %>% 
+        replace_na(list(orig_destination_distance = mean(.$orig_destination_distance, na.rm = T)))
     
+      # - - - - - - - - - - - - - - - 
+      # Fix gross_bookings_usd
+      # - - - - - - - - - - - - - - -
+      # Replace NA values with 
+      message("Working on origin distance feature...")
+      input_data = input_data %>% 
+        replace_na(list(gross_bookings_usd = -1 ))
+    # count missing values  
+    na_count <-sapply(input_data, function(y) sum(length(which(is.na(y)))))
+    
+    # deleting competitor original data
+    input_data = input_data[,!grepl("comp1",names(input_data))]
+    input_data = input_data[,!grepl("comp2",names(input_data))]
+    input_data = input_data[,!grepl("comp3",names(input_data))]
+    input_data = input_data[,!grepl("comp4",names(input_data))]
+    input_data = input_data[,!grepl("comp5",names(input_data))]
+    input_data = input_data[,!grepl("comp6",names(input_data))]
+    input_data = input_data[,!grepl("comp7",names(input_data))]
+    input_data = input_data[,!grepl("comp8",names(input_data))]
+    
+    # making feature price_quality
+    
+    input_data$normal_price <- (input_data$price_usd / mean(input_data$price_usd))
+    input_data$price_quality <- (input_data$normal_price/ input_data$prop_starrating)
     
   }
   }
 
 preprocess_data = function(input_data, subsample = 0.10){
-  
-  
-  # - - - - - - - - - - - - - - - 
-  # Fix origin distance values
-  # - - - - - - - - - - - - - - -
-  # Replace NA values with the median/mean distances across the origin
-  message("Working on origin distance feature...")
-  input_data = input_data %>% 
-    replace_na(list(orig_destination_distance = median(.$orig_destination_distance, na.rm = T)))
-  
-  
-  # - - - - - - - - - - - - - - - 
-  # Fix location score #2 values
-  # - - - - - - - - - - - - - - -
-  # Set the location score #2 to the minimum value across all scores
-  message("Working on location score #2 feature...")
-  input_data = input_data %>% 
-    group_by(srch_destination_id) %>% 
-    replace_na(list(prop_location_score2 = min(.$prop_location_score2, na.rm = T))) %>% 
-    ungroup()
-  
-  # - - - - - - - - - - - - - - - 
-  # Setup
-  # - - - - - - - - - - - 
-  
-  features <-names(input_data)
-  na_count <- colSums(is.na(input_data))
-  na_features <- names(na_count[na_count > 0])
-  na_indices <- which(features %in% na_features)
-  na_df <- input_data[, na_indices]
-  
-  # - - - - - - - - - - - - - - - 
-  # Fix visitor values
-  # - - - - - - - - - - - - - - -
-  message("Working on visitor values features...")
-  # Flag new customers, impute by sampling from appropriate distribution
-  
-  visitor_indices <- which(na_features %in% features[5:7])
-  visitor_features <- names(na_df[, visitor_indices])
-  visitor_df <- na_df[, visitor_indices]
-  
-  all_na <- function(x) all(is.na(x))
-  new_visitor <- apply(visitor_df[, visitor_indices], 1, all_na)
-  
-  cutoff <- function(x){
-    lower <- which(x < 0)
-    higher <- which(x > 5)
-    ret_x <- x
-    ret_x[lower] <- 0
-    ret_x[higher] <- 5
-    return (ret_x)
-  }
-  
-  visitor_stars <- visitor_df$visitor_hist_starrating[which(!is.na(visitor_df$visitor_hist_starrating))]
-  stars_fit <- fitdistr(visitor_stars, 'normal')
-  norm_para <- stars_fit$estimate
-  
-  visitor_stars_complete <- visitor_df$visitor_hist_starrating
-  vsc_nans <- sum(is.na(visitor_stars_complete))
-  star_samples <- rnorm(vsc_nans, norm_para[1], norm_para[2])
-  visitor_stars_complete[is.na(visitor_stars_complete)] <- cutoff(star_samples)
-  
-  visitor_usd <- visitor_df$visitor_hist_adr_usd[which(!is.na(visitor_df$visitor_hist_adr_usd) & visitor_df$visitor_hist_adr_usd != 0)]
-  usd_fit <- fitdistr(visitor_usd, 'weibull')
-  weib_para <- usd_fit$estimate
-  
-  visitor_usd_complete <- visitor_df$visitor_hist_adr_usd
-  vuc_nans <- sum(is.na(visitor_usd_complete))
-  usd_samples <- rweibull(vuc_nans, weib_para[1], weib_para[2])
-  visitor_usd_complete[is.na(visitor_usd_complete)] <- usd_samples
-  
-  add_visitor_df <- data.frame(new_visitor)
-  
-  # impute visitor history features via linear modelling
-  summaried <- input_data %>%
-    group_by(srch_id) %>%
-    summarise(hist_usd = mean(price_usd),
-              med_star= median(visitor_hist_starrating),
-              hist_usd_sqrt = sqrt(mean(price_usd)),
-              med_adr = median(visitor_hist_adr_usd,na.rm=T),
-              med_adr_sqrt=sqrt(med_adr))
-  
-  model_star <- lm(med_star ~ hist_usd_sqrt+I(hist_usd_sqrt^2),  data = summaried[summaried$hist_usd_sqrt<50,])
-  model_usd <- lm(med_adr_sqrt ~ hist_usd,  data = summaried[summaried$hist_usd_sqrt<2000,])
-  summaried$idx <- seq(from=1, to=dim(summaried)[1]) 
-  
-  indextopredit_star <- summaried[is.na(summaried$med_star),]
-  indextopredit_usr <- summaried[is.na(summaried$med_adr_sqrt ),]
-  
-  indextopredit_star$med_star_predicted <- predict.lm(model_star,sqrt(summaried[is.na(summaried$med_star),"hist_usd_sqrt"]))
-  indextopredit_usr$med_usd_sqrt_predicted <- predict.lm(model_usd,summaried[is.na(summaried$med_adr_sqrt),"hist_usd"])
-  
-  indextopredit_usr$med_usd_sqrt_predicted <- indextopredit_usr$med_usd_sqrt_predicted^2
-  predicted_valued.summary <- left_join(summaried,indextopredit_star, by="idx")
-  predicted_valued.summary <- left_join(predicted_valued.summary,indextopredit_usr, by="idx")
-  
-  add_to_visitor <- left_join(input_data, predicted_valued.summary[,c("srch_id","med_usd_sqrt_predicted","med_star_predicted")],by="srch_id")
-  
-  # create the two new variable
-  add_visitor_df$visitor_hist_starrating_lm <- apply(add_to_visitor[,c("visitor_hist_starrating","med_star_predicted")],1,FUN=sum,na.rm = T)
-  add_visitor_df$visitor_hist_adr_usd_lm <- apply(add_to_visitor[,c("visitor_hist_adr_usd","med_usd_sqrt_predicted")],1,FUN=sum,na.rm = T)
+
   
   # - - - - - - - - - - - - - - - 
   # Fix competition flags
