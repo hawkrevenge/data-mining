@@ -4,17 +4,16 @@
 
 # Libraries
 Main<-function(){
-  
-while(!require('data.table'))
-  install.packages('data.table')
-while(!require('ggplot2'))
-  install.packages('ggplot2')
-while(!require('dplyr'))
-  install.packages('dplyr')
-while(!require('emil'))
-  install.packages('emil')
-while(!require('magrittr'))
-  install.packages('magrittr')
+  while(!require('data.table'))
+    install.packages('data.table')
+  while(!require('ggplot2'))
+    install.packages('ggplot2')
+  while(!require('dplyr'))
+    install.packages('dplyr')
+  while(!require('emil'))
+    install.packages('emil')
+  while(!require('magrittr'))
+    install.packages('magrittr')
   while(!require('purrrlyr'))
     install.packages('purrrlyr')
   while(!require('MASS'))
@@ -23,17 +22,19 @@ while(!require('magrittr'))
     install.packages('sjlabelled')
   while(!require('tidyr'))
     install.packages('tidyr')
+  while(!require('gbm'))
+    install.packages('gbm')
   
-
-
-# Set switches 
-loadingSwitch <- TRUE
-exploreSwitch <- TRUE
-preprocSwitch <- TRUE
-
-loading(loadingSwitch)
-exploring(exploreSwitch)
-
+  
+  
+  # Set switches 
+  loadingSwitch <- TRUE
+  exploreSwitch <- FALSE
+  preprocSwitch <- TRUE
+  
+  loading(loadingSwitch)
+  exploring(exploreSwitch)
+  
 }
 
 ############################################
@@ -43,32 +44,30 @@ exploring(exploreSwitch)
 loading<-function(loadingSwitch){
   if(loadingSwitch)
   {
-datatraining.folder  <<- 
-  if(grepl("Michael", getwd())) {
-    "C:/Users/Michael"
-  } else if(grepl("Roel", getwd())) {
-    "training_set_VU_DM_2014.csv"
-  } else if(grepl("Emma", getwd())) {
-    "/Users/Emma/Downloads/Data Mining VU data/training_set_VU_DM_2014.csv"
-  }
-
-
-datatest.folder  <<- 
-  if(grepl("Michael", getwd())) {
-    "C:/Users/Michael"
-  } else if(grepl("Roel", getwd())) {
-    "test_set_VU_DM_2014.csv"
-  } else if(grepl("Emma", getwd())) {
-    "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
-  }
-
-expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
-expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
-input_data <<- expedia.data[sample(nrow(expedia.data), 1000), ] 
-
+    datatraining.folder  <<- 
+      if(grepl("Michael", getwd())) {
+        "C:/Users/Michael"
+      } else if(grepl("Roel", getwd())) {
+        "training_set_VU_DM_2014.csv"
+      } else if(grepl("Emma", getwd())) {
+        "/Users/Emma/Downloads/Data Mining VU data/training_set_VU_DM_2014.csv"
+      }
     
     
-}
+    datatest.folder  <<- 
+      if(grepl("Michael", getwd())) {
+        "C:/Users/Michael"
+      } else if(grepl("Roel", getwd())) {
+        "test_set_VU_DM_2014.csv"
+      } else if(grepl("Emma", getwd())) {
+        "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
+      }
+    
+    expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
+    expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
+    input_data <<- expedia.data[sample(nrow(expedia.data), 1000), ] 
+    
+  }
 }
 
 
@@ -79,85 +78,85 @@ input_data <<- expedia.data[sample(nrow(expedia.data), 1000), ]
 exploring<-function(exploringSwitch){
   if(exploringSwitch)
   {
-# number of unique properties/id in data
-expedia.data %>%
-  group_by(prop_id) %>%
-  summarise(n_distinct(srch_id))
-
-expedia.data %>%
-  group_by(srch_id) %>%
-  summarise(n_distinct(prop_id))
-
-# number of unique properties/id in test
-expedia.test %>%
-  group_by(prop_id) %>%
-  summarise(n_distinct(srch_id))
-
-expedia.test %>%
-  group_by(srch_id) %>%
-  summarise(n_distinct(prop_id))
-
-# length of property id's that are in data set but not in testset 
-setdiff(expedia.data$prop_id, expedia.test$prop_id) %>%
-  length()
-# length of property id's that are in test set but not in trainingset 
-setdiff(expedia.test$prop_id, expedia.data$prop_id) %>%
-  length()
-
-# count number of prop id per search id's 
-prop_per_srch <- expedia.data %>%
-  group_by(srch_id) %>%
-  summarise(n_distinct(prop_id))
-
-# number of property id's that has at least 1 booking
-booking_numb <- aggregate(booking_bool ~ prop_id, data = expedia.data, FUN = sum)
-nrow(booking_numb[booking_numb$booking_bool != 0,])
-# number of property id's that has at least 1 click
-click_numb <-   aggregate(click_bool ~ prop_id, data = expedia.data, FUN = sum)
-nrow(click_numb[click_numb$click_bool != 0,])
-
-
-# Some plots of variables
-df <- aggregate( booking_bool ~ site_id, data = expedia.data, FUN = length)
-ggplot(df, aes(x=site_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-df <- aggregate( booking_bool ~ visitor_location_country_id, data = expedia.data, FUN = length)
-ggplot(df, aes(x=visitor_location_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-df <- aggregate( booking_bool ~ prop_country_id, data = expedia.data, FUN = length)
-ggplot(df, aes(x=prop_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-
-# see into data
-dim(expedia.data)
-str(expedia.data)
-summary(expedia.data)
-
-# counting missing values each row and plotting it 
-df <- sapply(expedia.data, function(x) sum(is.na(x)))
-df1 <- data.frame(name = names(df), rank = df) 
-df1 <- df1[order(df1$rank),]
-df1$rank <- df1$rank / 4958347
-df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
-ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-
-df <- sapply(input_data, function(x) sum(is.na(x)))
-df1 <- data.frame(name = names(df), rank = df) 
-df1 <- df1[order(df1$rank),]
-df1$rank <- df1$rank
-df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
-ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-
-#library(reshape2)
-#ggplot(melt(expedia.data), aes(variable, value)) + geom_boxplot()
-
-#ggplot(stack(expedia.data), aes(x = ind, y = values)) +
- # geom_boxplot()
-
-# What days of the week are people booking?
-expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
-ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
+    # number of unique properties/id in data
+    expedia.data %>%
+      group_by(prop_id) %>%
+      summarise(n_distinct(srch_id))
+    
+    expedia.data %>%
+      group_by(srch_id) %>%
+      summarise(n_distinct(prop_id))
+    
+    # number of unique properties/id in test
+    expedia.test %>%
+      group_by(prop_id) %>%
+      summarise(n_distinct(srch_id))
+    
+    expedia.test %>%
+      group_by(srch_id) %>%
+      summarise(n_distinct(prop_id))
+    
+    # length of property id's that are in data set but not in testset 
+    setdiff(expedia.data$prop_id, expedia.test$prop_id) %>%
+      length()
+    # length of property id's that are in test set but not in trainingset 
+    setdiff(expedia.test$prop_id, expedia.data$prop_id) %>%
+      length()
+    
+    # count number of prop id per search id's 
+    prop_per_srch <- expedia.data %>%
+      group_by(srch_id) %>%
+      summarise(n_distinct(prop_id))
+    
+    # number of property id's that has at least 1 booking
+    booking_numb <- aggregate(booking_bool ~ prop_id, data = expedia.data, FUN = sum)
+    nrow(booking_numb[booking_numb$booking_bool != 0,])
+    # number of property id's that has at least 1 click
+    click_numb <-   aggregate(click_bool ~ prop_id, data = expedia.data, FUN = sum)
+    nrow(click_numb[click_numb$click_bool != 0,])
+    
+    
+    # Some plots of variables
+    df <- aggregate( booking_bool ~ site_id, data = expedia.data, FUN = length)
+    ggplot(df, aes(x=site_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    df <- aggregate( booking_bool ~ visitor_location_country_id, data = expedia.data, FUN = length)
+    ggplot(df, aes(x=visitor_location_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    df <- aggregate( booking_bool ~ prop_country_id, data = expedia.data, FUN = length)
+    ggplot(df, aes(x=prop_country_id, y=booking_bool)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    
+    # see into data
+    dim(expedia.data)
+    str(expedia.data)
+    summary(expedia.data)
+    
+    # counting missing values each row and plotting it 
+    df <- sapply(expedia.data, function(x) sum(is.na(x)))
+    df1 <- data.frame(name = names(df), rank = df) 
+    df1 <- df1[order(df1$rank),]
+    df1$rank <- df1$rank / 4958347
+    df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
+    ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    
+    df <- sapply(input_data, function(x) sum(is.na(x)))
+    df1 <- data.frame(name = names(df), rank = df) 
+    df1 <- df1[order(df1$rank),]
+    df1$rank <- df1$rank
+    df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
+    ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    
+    #library(reshape2)
+    #ggplot(melt(expedia.data), aes(variable, value)) + geom_boxplot()
+    
+    #ggplot(stack(expedia.data), aes(x = ind, y = values)) +
+    # geom_boxplot()
+    
+    # What days of the week are people booking?
+    expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
+    ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
   }
 }
 
@@ -268,8 +267,8 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     input_data = input_data %>% 
       replace_na(list(visitor_hist_starrating = mean(.$visitor_hist_starrating, na.rm = T)))
     input_data$starr_dif <- (input_data$visitor_hist_starrating - input_data$prop_starrating)
-      
-
+    
+    
     # Replace NA values with the mean price across the origin
     message("Working on visior history...")
     input_data = input_data %>% 
@@ -299,16 +298,16 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     # - - - - - - - - - - - - - - -
     # Replace NA values with the mean distances across the origin
     message("Working on origin distance feature...")
-      input_data = input_data %>% 
-        replace_na(list(orig_destination_distance = mean(.$orig_destination_distance, na.rm = T)))
+    input_data = input_data %>% 
+      replace_na(list(orig_destination_distance = mean(.$orig_destination_distance, na.rm = T)))
     
-      # - - - - - - - - - - - - - - - 
-      # Fix gross_bookings_usd
-      # - - - - - - - - - - - - - - -
-      # Replace NA values with 
-      message("Working on origin distance feature...")
-      input_data = input_data %>% 
-        replace_na(list(gross_bookings_usd = -1 ))
+    # - - - - - - - - - - - - - - - 
+    # Fix gross_bookings_usd
+    # - - - - - - - - - - - - - - -
+    # Replace NA values with 
+    message("Working on origin distance feature...")
+    input_data = input_data %>% 
+      replace_na(list(gross_bookings_usd = -1 ))
     # count missing values  
     na_count <-sapply(input_data, function(y) sum(length(which(is.na(y)))))
     
@@ -328,10 +327,10 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     input_data$price_quality <- (input_data$normal_price/ input_data$prop_starrating)
     
   }
-  }
+}
 
 preprocess_data = function(input_data, subsample = 0.10){
-
+  
   
   # - - - - - - - - - - - - - - - 
   # Fix competition flags
@@ -504,3 +503,127 @@ preprocess_data = function(input_data, subsample = 0.10){
               stratified = stratified))
   #return(input_data_subsampled)
 } 
+############################################
+## LambdaMART
+############################################
+LambdaMART<-function(Data)
+{
+  Data<-as.data.frame(Data)
+  now<-Sys.time()
+  search_IDs <- unique(Data[,1])
+  Data2_IDs<-search_IDs[1:5000]
+  Data_IDs<-search_IDs[5001:8000]
+  bookClickScore =  4 * Data[,"booking_bool"] + Data[,"click_bool"]
+  Data <- data.frame(Data, bookClickScore)
+  Data2<- Data[Data$srch_id%in% Data2_IDs,]
+  Data<- Data[Data$srch_id%in% Data_IDs,]
+  fit<-gbm(bookClickScore~ prop_starrating+prop_review_score+prop_location_score1+position, data=Data, shrinkage =0.1, n.trees = 500,
+           distribution=list(name='pairwise',metric="conc",group='srch_id'), bag.fraction = 0.5,  n.minobsinnode = 50)
+  best.iter <- gbm.perf(fit,method="OOB")
+  Prediction <-  predict(fit,Data2,best.iter)
+  print(Sys.time()-now)
+  submit <- data.frame(Data2, prediction = Prediction,index=0)[,-53][,-9:-51][,-2:-7]
+  submit<- submit[order(submit[,1],-submit[,6]),]
+  for(ID in Data2_IDs)
+  {
+    submit[submit[,1]==ID,]$index<-1:length(submit[submit[,1]==ID,1])
+  }
+  print(submit)
+}
+
+
+
+############################################
+## Benchmark
+############################################
+Benchmark<-function(Data)
+{
+  Data<-as.data.frame(Data)
+  search_IDs <- unique(Data[,1])
+  samples<-sample(search_IDs,500)
+  #now<-Sys.time()
+  BenchmarkData<-Data[sample(nrow(Data)),]
+  #print(Sys.time()-now)
+  BenchmarkData<-BenchmarkData[,-53][,-9:-51][,-2:-7]
+  BenchmarkData$index=0
+  #test<-as.data.frame(test,index=0)
+  
+  return(CheckScore(BenchmarkData[BenchmarkData[,1]%in%samples,]))
+  
+  #print(head(BenchmarkData))
+}
+
+
+############################################
+## Scorechecker
+############################################
+CheckScore<-function(DataGuess)
+{
+  #DataCorrect<-DataGuess[order(srch_id,-booking_bool,-click_bool)]
+  search_IDs <- unique(DataGuess[,1])
+  now=Sys.time()
+  #DataGuess<-as.data.frame(sapply(search_IDs,FUN=(function(x,y)y[y[,1]==x,]$index<-1:length(y[y[,1]==x,1])),y=DataGuess))
+
+  for(ID in search_IDs)
+  {
+    DataGuess[DataGuess[,1]==ID,]$index<-1:length(DataGuess[DataGuess[,1]==ID,1])
+    #DataCorrect[DataCorrect[,1]==ID,]$index<-1:length(DataCorrect[DataCorrect[,1]==ID,1])
+  }
+  
+  print(Sys.time()-now)
+  #print(DataGuess[1:100,])
+  DataGuess<-DataGuess[DataGuess[,3]==1|DataGuess[,4]==1,]
+  NDCG<-c()
+  n<-0
+  now<-Sys.time()
+  for(ID in search_IDs)
+  {
+    SCORE<- 0
+    n<-n+1
+    if(n%%2000==0)
+    {
+      print(n)
+      print(Sys.time()-now)
+    }
+    #CorrectDataByID<-DataCorrect[srch_id==ID]
+    #CorrectDataByID<- DataCorrect[DataCorrect[,1]==ID,]
+    GuessDataByID<- DataGuess[DataGuess[,1]==ID,]
+    #DataGuess<- DataGuess[-1:-length(GuessDataByID),]
+    counter <- 1
+    booking<-length(GuessDataByID[DataGuess[,3]==1,])
+    clicks<-length(GuessDataByID[DataGuess[,4]==1,])-booking
+    counter2 <- 1
+    if(booking>0)
+    {
+      counter2<-2
+      BestScore<-5
+    }
+    else
+      counter2<-1
+    if(nrow(GuessDataByID)==0)
+    {
+      print("empty")
+      next
+    }
+    for(i in 1:clicks)
+    {
+      BestScore<-BestScore+1/log2(1+counter2)
+      counter2<-counter2+1
+    }
+    for(k in 1:nrow(GuessDataByID))
+    {
+      dataItem<-GuessDataByID[k,]
+      print(dataItem)
+      if(dataItem[1,4])
+        SCORE<- SCORE+5/log2(1+dataItem[1,5])
+      else if(dataItem[1,3])
+        SCORE<- SCORE+1/log2(1+dataItem[1,5])
+    }
+    
+    NDCG[n]<-SCORE/BestScore
+  }
+  SCORE<-mean(NDCG)
+  print(SCORE)
+}
+#LambdaMART(as.data.frame(expedia.data))
+Benchmark(expedia.data)
