@@ -39,6 +39,11 @@ preprocSwitch <- TRUE
 loading(loadingSwitch)
 exploring(exploreSwitch)
 
+# preproc function requires the switch, the dataframe you wish to process and the name of dataframe you wish to store the processed dataframe in
+# input_test is the dataframe you whish to preproces
+# name_new_dataframe is the name of the new dataframe
+preproc(preprocSwitch, input_test, input_test_processed)
+
 }
 
 ############################################
@@ -70,7 +75,7 @@ datatest.folder  <<-
 expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
 expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
 input_data <<- expedia.data[sample(nrow(expedia.data), 1000), ] 
-test_data <<- expedia.data[sample(nrow(expedia.data), 1000),]
+input_test <<- expedia.data[sample(nrow(expedia.data), 1000),]
     
 
 }
@@ -161,14 +166,14 @@ ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text
  # geom_boxplot()
 
 # What days of the week are people booking?
-expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
-ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
+#expedia.booked$DayOfWeek <- factor(weekdays(as.Date(expedia.booked$date_time)), levels= c("maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag", "zondag"))
+#ggplot(data = expedia.booked, aes(expedia.booked$DayOfWeek)) + geom_bar()
   }
 }
 
 expedia.data$new <- NULL
 
-preproc<-function(preprocSwitch, input_data, subsample = 0.10){
+preproc<-function(preprocSwitch, input_data, name_new_dataframe){
   if(preprocSwitch)
   {
     message("Working on competitor features...")
@@ -332,96 +337,7 @@ preproc<-function(preprocSwitch, input_data, subsample = 0.10){
     #input_data$normal_location <- (input_data$prop_location_score1 / mean(input_data$prop_location_score1)
     input_data$price_quality <- (input_data$normal_price/ input_data$prop_starrating)
     
+    eval(parse(text = paste(substitute(name_new_dataframe), "<<- input_data")))
   }
 }
 
-# Read the data
-
-train.clean <- read.csv('./data/clean_training_data.csv', header = TRUE, stringsAsFactors = FALSE)
-test.sample <- read.csv('./data/clean_testing_data.csv', header = TRUE, stringsAsFactors = FALSE)
-
-train.clean <- input_data
-test.sample <- test_data
-# Generate random samples for a training and a testing sets
-set.seed(0)
-individual_users <- unique(train.clean$srch_id)
-
-# Select X% of the total population at random
-X = 0.1
-sample_users_pool <- sample(individual_users, (length(individual_users) * X))
-
-sample.train <- unique(sort(sample_users_pool[1:length(sample_users_pool)]))
-
-train.sample <- train.clean[train.clean$srch_id %in% sample.train,]
-
-rm(train.clean, individual_users, sample_users_pool, sample.train)
-
-## Set up the initial model for click_bool
-# Get the initial variables from the text file
-variable.names <- as.vector(names(input_data))
-
-## Model each prediction------------------------
-## Model the click boolean
-xgboost.click_bool <- xgboost(data = sapply(train.sample[variable.names], as.numeric), 
-                              label = train.sample$click_bool,
-                              params = list(objective = "binary:logistic",
-                                            eta = 0.01,
-                                            max.depth = 40,
-                                            nthread = 6),
-                              nrounds = 3,
-                              verbose = 0)
-# Predict click_bool
-xgboost.click_bool.pred <- predict(object = xgboost.click_bool, 
-                                   newdata = sapply(test.sample[variable.names], as.numeric))
-# Add to dataset
-test.sample$click_bool.pred <- ifelse(xgboost.click_bool.pred > 0.489, 1, 0)
-
-# Remove
-rm(xgboost.click_bool, xgboost.click_bool.pred)
-
-
-## Model the booking boolean
-xgboost.booking_bool <- xgboost(data = sapply(train.sample[c(variable.names,'click_bool')], as.numeric), 
-                                label = train.sample$booking_bool,
-                                params = list(objective = "binary:logistic",
-                                              eta = 0.01,
-                                              max.depth = 40,
-                                              nthread = 6),
-                                nrounds = 3,
-                                verbose = 0)
-# predict booking_bool
-xgboost.booking_bool.pred <- predict(object = xgboost.booking_bool, 
-                                     newdata = sapply(test.sample[c(variable.names,'click_bool')], as.numeric))
-# Add to dataset
-test.sample$booking_bool.pred <- ifelse(xgboost.booking_bool.pred > 0.50, 1, 0)
-
-# Remove
-rm(xgboost.booking_bool, xgboost.booking_bool.pred)
-
-## Model the ranking
-xgboost.position <- xgboost(data = sapply(train.sample[c(variable.names,
-                                                         'click_bool', 
-                                                         'booking_bool')], 
-                                          as.numeric), 
-                            label = train.sample$position,
-                            params = list(objective = "rank:pairwise",
-                                          eta = 0.01,
-                                          max.depth = 40,
-                                          nthread = 6,
-                                          eval_metric = 'ndcg'),
-                            nrounds = 3,
-                            verbose = 0)
-# Predict the position in the ranking
-xgboost.position.pred <- predict(object = xgboost.position, 
-                                 newdata = sapply(test.sample[c(variable.names,
-                                                                'click_bool', 
-                                                                'booking_bool')], 
-                                                  as.numeric))
-test.sample$position.pred <- xgboost.position.pred
-test.sample <- test.sample[order(test.sample$srch_id, test.sample$position.pred),]
-test.sample$position.order <- ave(test.sample$position.pred, test.sample$srch_id, FUN = seq_along)
-test.sample <- test.sample[order(test.sample$srch_id, test.sample$position.order),]
-
-# Make the final output file
-final_output <- cbind(test.sample$srch_id, test.sample$prop_id)
-write.csv(final_output, 'FINAL_Output (080).csv')
