@@ -157,7 +157,67 @@ df1 <- data.frame(name = names(df), rank = df)
 df1 <- df1[order(df1$rank),]
 df1$rank <- df1$rank
 df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
-ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(df1, aes(x=name, y=rank)) + geom_col(fill = "#FF6666") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Attributes")+ylab("Missing values")
+
+##################################################################################################
+# prop_review_score, prop location_score2 , orig_destination_distance
+##################################################################################################
+# booking
+histo <- expedia.data[, c("booking_bool","click_bool", "prop_review_score", "prop_location_score2", "orig_destination_distance")]
+histo$review_na_bool <- as.integer(as.logical(is.na(histo$prop_review_score)))
+histo$location_na_bool <- as.integer(as.logical(is.na(histo$prop_location_score2)))
+histo$orig_na_bool <- as.integer(as.logical(is.na(histo$orig_destination_distance)))
+
+message("Woking on histogram book percentage")
+histo2 <- histo[, c("booking_bool", "review_na_bool")]
+histo3 <- aggregate(histo2,by=list(histo2$review_na_bool),mean)
+histo4 <- histo[, c("booking_bool", "location_na_bool")]
+histo5 <- aggregate(histo4,by=list(histo4$location_na_bool),mean)
+histo6 <- histo[, c("booking_bool", "orig_na_bool")]
+histo7 <- aggregate(histo6,by=list(histo6$orig_na_bool),mean)
+
+histo3$review_na_bool <- histo3$booking_bool
+histo3$booking_bool <- histo3$Group.1
+histo3$location_na_bool <- histo5$booking_bool
+histo3$orig_na_bool <- histo7$booking_bool
+
+histo4 <- histo3[,2:length(histo3)]
+histo4.long<-melt(histo4,id.vars="booking_bool")
+
+ggplot(histo4.long,aes(x=variable,y=value,fill=factor(booking_bool)))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Booking bool",
+                      breaks=c(0, 1),
+                      labels=c("Data Available", "No data available"))+
+  xlab("Attributes")+ylab("Percentage hotels being booked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+# clicks
+message("Woking on histogram click percentage")
+histo2 <- histo[, c("click_bool", "review_na_bool")]
+histo3 <- aggregate(histo2,by=list(histo2$review_na_bool),mean)
+histo4 <- histo[, c("click_bool", "location_na_bool")]
+histo5 <- aggregate(histo4,by=list(histo4$location_na_bool),mean)
+histo6 <- histo[, c("click_bool", "orig_na_bool")]
+histo7 <- aggregate(histo6,by=list(histo6$orig_na_bool),mean)
+
+histo3$review_na_bool <- histo3$click_bool
+histo3$click_bool <- histo3$Group.1
+histo3$location_na_bool <- histo5$click_bool
+histo3$orig_na_bool <- histo7$click_bool
+
+histo4 <- histo3[,2:length(histo3)]
+histo4.long<-melt(histo4,id.vars="click_bool")
+
+ggplot(histo4.long,aes(x=variable,y=value,fill=factor(click_bool)))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Click bool",
+                      breaks=c(0, 1),
+                      labels=c("Data Available", "No data available"))+
+  xlab("Attributes")+ylab("Percentage hotels being clicked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 
 #library(reshape2)
 #ggplot(melt(expedia.data), aes(variable, value)) + geom_boxplot()
@@ -338,6 +398,7 @@ preproc<-function(preprocSwitch, input_data, name_new_dataframe){
     input_data$price_quality <- (input_data$normal_price/ input_data$prop_starrating)
     
     eval(parse(text = paste(substitute(name_new_dataframe), "<<- input_data")))
+    
   }
 }
 
