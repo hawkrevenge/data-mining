@@ -52,30 +52,29 @@ preproc(preprocSwitch, input_test, input_test_processed)
 loading<-function(loadingSwitch){
   if(loadingSwitch)
   {
-    datatraining.folder  <<- 
-      if(grepl("Michael", getwd())) {
-        "C:/Users/Michael"
-      } else if(grepl("Roel", getwd())) {
-        "training_set_VU_DM_2014.csv"
-      } else if(grepl("Emma", getwd())) {
-        "/Users/Emma/Downloads/Data Mining VU data/training_set_VU_DM_2014.csv"
-      }
-    
-    
-    datatest.folder  <<- 
-      if(grepl("Michael", getwd())) {
-        "C:/Users/Michael"
-      } else if(grepl("Roel", getwd())) {
-        "test_set_VU_DM_2014.csv"
-      } else if(grepl("Emma", getwd())) {
-        "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
-      }
-    
-    expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
-    expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
-    input_data <<- expedia.data[sample(nrow(expedia.data), 1000), ] 
-    input_test <<- expedia.data[sample(nrow(expedia.data), 1000),]
-    
+datatraining.folder  <<- 
+  if(grepl("Michael", getwd())) {
+    "C:/Users/Michael"
+  } else if(grepl("Roel", getwd())) {
+    "training_set_VU_DM_2014.csv"
+  } else if(grepl("Emma", getwd())) {
+    "/Users/Emma/Downloads/Data Mining VU data/training_set_VU_DM_2014.csv"
+  }
+
+
+datatest.folder  <<- 
+  if(grepl("Michael", getwd())) {
+    "C:/Users/Michael"
+  } else if(grepl("Roel", getwd())) {
+    "test_set_VU_DM_2014.csv"
+  } else if(grepl("Emma", getwd())) {
+    "/Users/Emma/Downloads/Data Mining VU data/test_set_VU_DM_2014.csv"
+  }
+
+expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
+expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
+input_data <<- expedia.data[sample(nrow(expedia.data), 100000), ] 
+input_test <<- expedia.data[sample(nrow(expedia.data), 1000),]
   }
 }
 
@@ -155,7 +154,67 @@ df1 <- data.frame(name = names(df), rank = df)
 df1 <- df1[order(df1$rank),]
 df1$rank <- df1$rank
 df1$name <- factor(df1$name, levels = df1$name[order(df1$rank)])
-ggplot(df1, aes(x=name, y=rank)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(df1, aes(x=name, y=rank)) + geom_col(fill = "#FF6666") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Attributes")+ylab("Missing values")
+
+##################################################################################################
+# prop_review_score, prop location_score2 , orig_destination_distance
+##################################################################################################
+# booking
+histo <- expedia.data[, c("booking_bool","click_bool", "prop_review_score", "prop_location_score2", "orig_destination_distance")]
+histo$review_na_bool <- as.integer(as.logical(is.na(histo$prop_review_score)))
+histo$location_na_bool <- as.integer(as.logical(is.na(histo$prop_location_score2)))
+histo$orig_na_bool <- as.integer(as.logical(is.na(histo$orig_destination_distance)))
+
+message("Woking on histogram book percentage")
+histo2 <- histo[, c("booking_bool", "review_na_bool")]
+histo3 <- aggregate(histo2,by=list(histo2$review_na_bool),mean)
+histo4 <- histo[, c("booking_bool", "location_na_bool")]
+histo5 <- aggregate(histo4,by=list(histo4$location_na_bool),mean)
+histo6 <- histo[, c("booking_bool", "orig_na_bool")]
+histo7 <- aggregate(histo6,by=list(histo6$orig_na_bool),mean)
+
+histo3$review_na_bool <- histo3$booking_bool
+histo3$booking_bool <- histo3$Group.1
+histo3$location_na_bool <- histo5$booking_bool
+histo3$orig_na_bool <- histo7$booking_bool
+
+histo4 <- histo3[,2:length(histo3)]
+histo4.long<-melt(histo4,id.vars="booking_bool")
+
+ggplot(histo4.long,aes(x=variable,y=value,fill=factor(booking_bool)))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Booking bool",
+                      breaks=c(0, 1),
+                      labels=c("Data Available", "No data available"))+
+  xlab("Attributes")+ylab("Percentage hotels being booked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+# clicks
+message("Woking on histogram click percentage")
+histo2 <- histo[, c("click_bool", "review_na_bool")]
+histo3 <- aggregate(histo2,by=list(histo2$review_na_bool),mean)
+histo4 <- histo[, c("click_bool", "location_na_bool")]
+histo5 <- aggregate(histo4,by=list(histo4$location_na_bool),mean)
+histo6 <- histo[, c("click_bool", "orig_na_bool")]
+histo7 <- aggregate(histo6,by=list(histo6$orig_na_bool),mean)
+
+histo3$review_na_bool <- histo3$click_bool
+histo3$click_bool <- histo3$Group.1
+histo3$location_na_bool <- histo5$click_bool
+histo3$orig_na_bool <- histo7$click_bool
+
+histo4 <- histo3[,2:length(histo3)]
+histo4.long<-melt(histo4,id.vars="click_bool")
+
+ggplot(histo4.long,aes(x=variable,y=value,fill=factor(click_bool)))+
+  geom_bar(stat="identity",position="dodge")+
+  scale_fill_discrete(name="Click bool",
+                      breaks=c(0, 1),
+                      labels=c("Data Available", "No data available"))+
+  xlab("Attributes")+ylab("Percentage hotels being clicked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
 
 #library(reshape2)
 #ggplot(melt(expedia.data), aes(variable, value)) + geom_boxplot()
@@ -252,9 +311,55 @@ preproc<-function(preprocSwitch, input_data, name_new_dataframe){
       cbind(comp_inv_missing) %>% 
       cbind(comp_rate_percent_missing)
     
-    #Boxplot bool
-    ggplot(aggregate( booking_bool ~ comp_rate_negative, data = input_data, FUN = length) , aes(comp_rate_negative, booking_bool))  + geom_col()
     
+    #######################################################################################
+    # Lower price available 
+    #######################################################################################
+    
+    # make bool if lower price available
+    input_data$comp_rate_bool <- as.integer(pmin(1, input_data$comp_rate_positive))
+    input_data$comp_inv_bool <- as.integer(pmin(1, input_data$comp_inv_neutral))
+    
+    histo <- input_data[, c("booking_bool","click_bool", "comp_rate_bool", "comp_inv_bool")]
+    histo2 <- histo[, c("booking_bool", "comp_rate_bool")]
+    histo3 <- aggregate(histo2,by=list(histo2$comp_rate_bool),mean)
+    histo4 <- histo[, c("booking_bool", "comp_inv_bool")]
+    histo5 <- aggregate(histo4,by=list(histo4$comp_inv_bool),mean)
+    
+    histo3$comp_rate_bool <- histo3$booking_bool
+    histo3$booking_bool <- histo3$Group.1
+    histo3$comp_inv_bool <- histo5$booking_bool
+    histo4 <- histo3[,2:length(histo3)]
+    histo4.long <- melt(histo4,id.vars="booking_bool")
+    
+    ggplot(histo4.long,aes(x=variable,y=value,fill=factor(booking_bool)))+
+      geom_bar(stat="identity",position="dodge")+
+      scale_fill_discrete(name="Availability",
+                          breaks=c(0, 1),
+                          labels=c("Yes", "No"))+
+      xlab("Attributes")+ylab("Percentage hotels being booked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    
+    histo2 <- histo[, c("click_bool", "comp_rate_bool")]
+    histo3 <- aggregate(histo2,by=list(histo2$comp_rate_bool),mean)
+    histo4 <- histo[, c("click_bool", "comp_inv_bool")]
+    histo5 <- aggregate(histo4,by=list(histo4$comp_inv_bool),mean)
+    
+    histo3$comp_rate_bool <- histo3$click_bool
+    histo3$click_bool <- histo3$Group.1
+    histo3$comp_inv_bool <- histo5$click_bool
+    histo4 <- histo3[,2:length(histo3)]
+    histo4.long <- melt(histo4,id.vars="click_bool")
+    
+    ggplot(histo4.long,aes(x=variable,y=value,fill=factor(click_bool)))+
+      geom_bar(stat="identity",position="dodge")+
+      scale_fill_discrete(name="Availability",
+                          breaks=c(0, 1),
+                          labels=c("Yes", "No"))+
+      xlab("Attributes")+ylab("Percentage hotels being clicked") +theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    
+  
     # Message
     message("Finished working on competitor features...")
     
@@ -275,14 +380,33 @@ preproc<-function(preprocSwitch, input_data, name_new_dataframe){
     message("Working on visior history...")
     input_data = input_data %>% 
       replace_na(list(visitor_hist_starrating = mean(.$visitor_hist_starrating, na.rm = T)))
-    input_data$starr_dif <- (input_data$visitor_hist_starrating - input_data$prop_starrating)
-    
-    
+    input_data$starr_dif <- abs((input_data$visitor_hist_starrating - input_data$prop_starrating))
+      
     # Replace NA values with the mean price across the origin
     message("Working on visior history...")
     input_data = input_data %>% 
       replace_na(list(visitor_hist_adr_usd = mean(.$visitor_hist_adr_usd, na.rm = T)))
-    input_data$price_dif <- (input_data$visitor_hist_adr_usd - input_data$price_usd)
+    input_data$price_dif <- abs((input_data$visitor_hist_adr_usd - input_data$price_usd))
+
+    #### make histogram for booking bool star diff
+    histo <- input_data[, c("booking_bool","click_bool", "starr_dif", "price_dif")]
+    histo$group_starr_dif <- as.integer(ifelse(histo$starr_dif < 1, "1", ifelse(histo$starr_dif < 2, "2", ifelse(histo$starr_dif < 3, "3", ifelse(histo$starr_dif < 4, "4", ifelse(histo$starr_dif < 5, "5", "6" ) ) ) ) ) ) 
+    # histo$group <- as.integer(ifelse(histo$price_quality < 0.10, "0.0-0.1", ifelse(histo$price_quality < 0.2, "0.1-0.2", ifelse(histo$price_quality < 0.3, "0.2-0.3", ifelse(histo$price_quality < 0.4, "0.3-0.4", ifelse(histo$price_quality < 0.5, "0.4-0.5", ifelse(histo$price_quality < 0.6, "0.5-1.0", ifelse(histo$price_quality < 0.7, "0.5-1.0", ifelse(histo$price_quality < 0.8, "0.5-1.0", ifelse(histo$price_quality < 0.9, "0.5-1.0", ifelse(histo$price_quality < 1, "0.5-1.0", "Rank=0" ) ) ) ) ) ) ) ) ) ) )
+    histo2 <- histo[, c("booking_bool", "group_starr_dif")]
+    histo3 <- aggregate(histo2,by=list(histo2$group_starr_dif),mean)
+ 
+    ggplot(data=histo3, aes(x=group_starr_dif, y=booking_bool)) +
+      geom_bar(stat="identity") + scale_x_continuous("PriceQuality",breaks=c(1:5), labels=c("0-1","1-2","2,3","3-4","4-5")) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    #### make histogram for click bool star diff
+    histo <- input_data[, c("booking_bool","click_bool", "starr_dif", "price_dif")]
+    histo$group_starr_dif <- as.integer(ifelse(histo$starr_dif < 1, "1", ifelse(histo$starr_dif < 2, "2", ifelse(histo$starr_dif < 3, "3", ifelse(histo$starr_dif < 4, "4", ifelse(histo$starr_dif < 5, "5", "6" ) ) ) ) ) ) 
+    # histo$group <- as.integer(ifelse(histo$price_quality < 0.10, "0.0-0.1", ifelse(histo$price_quality < 0.2, "0.1-0.2", ifelse(histo$price_quality < 0.3, "0.2-0.3", ifelse(histo$price_quality < 0.4, "0.3-0.4", ifelse(histo$price_quality < 0.5, "0.4-0.5", ifelse(histo$price_quality < 0.6, "0.5-1.0", ifelse(histo$price_quality < 0.7, "0.5-1.0", ifelse(histo$price_quality < 0.8, "0.5-1.0", ifelse(histo$price_quality < 0.9, "0.5-1.0", ifelse(histo$price_quality < 1, "0.5-1.0", "Rank=0" ) ) ) ) ) ) ) ) ) ) )
+    histo2 <- histo[, c("click_bool", "group_starr_dif")]
+    histo3 <- aggregate(histo2,by=list(histo2$group_starr_dif),mean)
+    
+    ggplot(data=histo3, aes(x=group_starr_dif, y=click_bool)) +
+      geom_bar(stat="identity") + scale_x_continuous("PriceQuality",breaks=c(1:5), labels=c("0-1","1-2","2,3","3-4","4-5")) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
     
     
     # - - - - - - - - - - - - - - - 
@@ -330,12 +454,48 @@ preproc<-function(preprocSwitch, input_data, name_new_dataframe){
     input_data = input_data[,!grepl("comp7",names(input_data))]
     input_data = input_data[,!grepl("comp8",names(input_data))]
     
+    ##############################################################################
+    # Feature making 
+    ##############################################################################
+    
     # making feature normal price, normal locationscore, price_quality
     input_data$normal_price <- (input_data$price_usd / mean(input_data$price_usd))
     #input_data$normal_location <- (input_data$prop_location_score1 / mean(input_data$prop_location_score1)
-    input_data$price_quality <- (input_data$normal_price/ input_data$prop_starrating)
+    input_data$price_quality <- (input_data$normal_price/ pmax(0.1,input_data$prop_starrating))
+    
+    histo <- input_data[, c("booking_bool","click_bool", "price_quality")]
+    histo$group <- as.integer(ifelse(histo$price_quality < 0.10, "1", ifelse(histo$price_quality < 0.2, "2", ifelse(histo$price_quality < 0.3, "3", ifelse(histo$price_quality < 0.4, "4", ifelse(histo$price_quality < 0.5, "5", ifelse(histo$price_quality < 0.6, "6", ifelse(histo$price_quality < 0.7, "6", ifelse(histo$price_quality < 0.8, "6", ifelse(histo$price_quality < 0.9, "6", ifelse(histo$price_quality < 1, "6", "7" ) ) ) ) ) ) ) ) ) ) )
+    # histo$group <- as.integer(ifelse(histo$price_quality < 0.10, "0.0-0.1", ifelse(histo$price_quality < 0.2, "0.1-0.2", ifelse(histo$price_quality < 0.3, "0.2-0.3", ifelse(histo$price_quality < 0.4, "0.3-0.4", ifelse(histo$price_quality < 0.5, "0.4-0.5", ifelse(histo$price_quality < 0.6, "0.5-1.0", ifelse(histo$price_quality < 0.7, "0.5-1.0", ifelse(histo$price_quality < 0.8, "0.5-1.0", ifelse(histo$price_quality < 0.9, "0.5-1.0", ifelse(histo$price_quality < 1, "0.5-1.0", "Rank=0" ) ) ) ) ) ) ) ) ) ) )
+    histo2 <- histo[, c("booking_bool", "group")]
+    histo3 <- aggregate(histo2,by=list(histo2$group),mean)
+    labels2 <- c("0.0-0.1", "0.1-0.2","0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-1", "Rank=0")
+    
+    ggplot(data=histo3, aes(x=group, y=booking_bool)) +
+      geom_bar(stat="identity") + scale_x_continuous("PriceQuality",breaks=c(1:7), labels=labels2) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    histo2 <- histo[, c("click_bool", "group")]
+    histo3 <- aggregate(histo2,by=list(histo2$group),mean)
+
+    ggplot(data=histo3, aes(x=group, y=click_bool)) +
+      geom_bar(stat="identity") + scale_x_continuous("PriceQuality",breaks=c(1:7), labels=labels2) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    
+    #########################################################################################
+    # making feature for search window
+    #########################################################################################
+    histo <- aggregate(expedia.data$booking_bool, list(length = expedia.data$srch_booking_window), FUN = length)
+    histo2 <- aggregate(expedia.data$booking_bool, list(length = expedia.data$srch_booking_window), FUN = sum)
+    histo$group <- as.integer(ifelse(histo$length < 365, "0", "1"))
+    histo2$group <- as.integer(ifelse(histo2$length < 365, "0", "1"))
+    histo3 <- histo[, c("x", "group")]
+    histo4 <- histo2[,c("x", "group")]
+    histo3$sum <- histo2$x
+    histo3$mean <- histo3$sum/histo3$x
+    histo3$weigthedmean <- histo3$mean * histo3$x
+    histo4 <- aggregate(histo3,by=list(histo2$group),mean)
     
     eval(parse(text = paste(substitute(name_new_dataframe), "<<- input_data")))
+    
+    
   }
 }
 
