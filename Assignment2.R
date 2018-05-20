@@ -28,11 +28,10 @@ Main<-function(){
     install.packages('caret')
   while(!require('gbm'))
     install.packages('gbm')
-  
-  
+
   
   # Set switches 
-  loadingSwitch <- TRUE
+  loadingSwitch <- FALSE
   exploreSwitch <- FALSE
   preprocSwitch <- TRUE
   
@@ -42,7 +41,9 @@ Main<-function(){
 # preproc function requires the switch, the dataframe you wish to process and the name of dataframe you wish to store the processed dataframe in
 # input_test is the dataframe you whish to preproces
 # name_new_dataframe is the name of the new dataframe
-preproc(preprocSwitch, input_test, input_test_processed)
+  now<-Sys.time()
+preproc(preprocSwitch, expedia.data, expedia.dataproc)
+print(Sys.time()-now)
 }
 
 ############################################
@@ -230,86 +231,44 @@ ggplot(histo4.long,aes(x=variable,y=value,fill=factor(click_bool)))+
 
 expedia.data$new <- NULL
 
+
+
+############################################
+## Preproccess
+############################################
 preproc<-function(preprocSwitch, input_data, name_new_dataframe){
   if(preprocSwitch)
   {
     message("Working on competitor features...")
     # Count the number of NaN/-1/+1 values across compX_rate
-    comp_rate_missing = input_data %>% 
-      dplyr::select(ends_with("rate")) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(is.na(x[1:8]))
-        },
-        .to = "comp_rate_na",
-        .collate = "cols"
-      ) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(x[1:8] == 1, na.rm = T)
-        },
-        .to = "comp_rate_positive",
-        .collate = "cols"
-      ) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(x[1:8] == -1, na.rm = T)
-        },
-        .to = "comp_rate_negative",
-        .collate = "cols"
-      ) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(x[1:8] == 0, na.rm = T)
-        },
-        .to = "comp_rate_neutral",
-        .collate = "cols"
-      ) %>% 
+    comp_rate_missing = input_data  %>%
+      dplyr::select(ends_with("rate"))%>%
+      rowwise()%>%(function(x)(mutate(input_data,
+        comp_rate_na=sum(is.na(x)),
+        comp_rate_positive=sum(x == 1, na.rm = T),
+        comp_rate_negative=sum(x == -1, na.rm = T),
+        comp_rate_neutral=sum(x == 0, na.rm = T)))) %>% 
       dplyr::select(starts_with("comp_rate"))
     
     # Count the number of NaN/0/+1 values across compX_inv
     comp_inv_missing = input_data %>% 
+      rowwise() %>%
       dplyr::select(ends_with("inv")) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(is.na(x[1:8]))
-        },
-        .to = "comp_inv_na",
-        .collate = "cols"
-      ) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(x[1:8] == 1, na.rm = T)
-        },
-        .to = "comp_inv_positive",
-        .collate = "cols"
-      ) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(x[1:8] == 0, na.rm = T)
-        },
-        .to = "comp_inv_neutral",
-        .collate = "cols"
-      ) %>% 
+      (function(x)mutate(input_data,
+        comp_inv_na = sum(is.na(x)),
+        comp_inv_positive = sum(x == 1, na.rm=T),
+        comp_inv_neutral = sum(x == 0, na.rm = T)))%>% 
       dplyr::select(starts_with("comp_inv"))
     
     # Count the number of NaN/mean(abs) values across compX_rate_percent
-    comp_rate_percent_missing = input_data %>% 
-      dplyr::select(ends_with("rate_percent_diff")) %>% 
-      by_row(
-        ..f = function(x) {
-          sum(is.na(x[1:8]))
-        },
-        .to = "comp_rate_percent_diff_na",
-        .collate = "cols"
-      ) %>% 
+    comp_rate_percent_missing = input_data %>% rowwise()%>%
+      dplyr::select(ends_with("rate_percent_diff")) %>%
+      (function(x)mutate(input_data,
+                         comp_rate_percent_diff_na = sum(is.na(x))))%>% 
       dplyr::select(starts_with("comp_rate_percent"))
     
     # Cbind the existing data
-    input_data = input_data %>% 
-      cbind(comp_rate_missing) %>% 
-      cbind(comp_inv_missing) %>% 
-      cbind(comp_rate_percent_missing)
+    input_data = cbind(input_data, comp_rate_missing, comp_inv_missing, comp_rate_percent_missing)
     
     
     #######################################################################################
@@ -689,7 +648,13 @@ LambdaMART<-function(Data)
   Data<- Data[Data$srch_id%in% Data_IDs,]
   bookClickScore =  4 * Data[,"booking_bool"] + Data[,"click_bool"]
   Data <- data.frame(Data, bookClickScore)
-  fit<-gbm(bookClickScore~ prop_starrating+prop_review_score+prop_location_score1+position, data=Data, shrinkage =0.1, n.trees = 500,
+  fit<-gbm(
+    bookClickScore~ visitor_hist_starrating + prop_starrating + prop_review_score + prop_brand_bool+prop_location_score1 + prop_location_score2+
+      prop_log_historical_price + price_usd+promotion_flag + srch_length_of_stay + srch_booking_window + srch_adult_count + srch_children_count+
+      srch_room_count + srch_saturday_night_bool + srch_query_affinity_score + orig_destination_distance + 
+      comp_rate_na + comp_rate_positive + comp_rate_negative + comp_rate_neutral+comp_inv_na + comp_inv_positive + 
+      comp_inv_neutral + comp_rate_percent_diff_na + comp_rate_bool+ comp_inv_bool + starr_dif + price_dif+normal_price + price_quality 
+    , data=Data, shrinkage =0.1, n.trees = 500,
            distribution=list(name='pairwise',metric="conc",group='srch_id'), bag.fraction = 0.5,  n.minobsinnode = 50)
   best.iter <- gbm.perf(fit,method="OOB")
   Prediction <-  predict(fit,Data2,best.iter)
@@ -767,12 +732,13 @@ CheckScore<-function(DataGuess)
   DCGCorrect <- DataCorrect %>%rowwise()%>%
     mutate(DCG = GiveDCG(click_bool,booking_bool,index))%>%group_by(srch_id)%>%
     summarize(DCGtotalCorrect=sum(DCG)) %>% as.data.frame()
-  #NDCG<- 
+
   DCGFrame<-cbind(DCGGuess,DCGCorrect[-1])
   NDCG<- DCGFrame%>%rowwise() %>% mutate(NDCG=DCGtotalGuess/DCGtotalCorrect)%>%  as.data.frame()
   print(Sys.time()-now)
   #print(NDCG[1:100,])
   print(mean(NDCG[,4]))
 }
-LambdaMART(expedia.data)
+#LambdaMART(expedia.data)
 #Benchmark(expedia.data)
+Main()
