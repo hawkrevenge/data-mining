@@ -73,9 +73,9 @@ datatest.folder  <<-
   }
 
 expedia.data <<- fread(datatraining.folder, header=TRUE, na.strings=c("","NULL","NA"))       # 31 seconde bij Emma, 6 bij Roel
-expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NA"))   # 28 seconde bij Emma, 11 bij Roel
-input_data <<- expedia.data[sample(nrow(expedia.data), 100000), ] 
-input_test <<- expedia.data[sample(nrow(expedia.data), 1000),]
+expedia.test <<- fread(datatest.folder, header=TRUE, na.strings=c("","NULL", "NA"))   # 28 seconde bij Emma, 11 bij Roel
+#input_data <<- expedia.data[sample(nrow(expedia.data), 100000), ] 
+#input_test <<- expedia.data[sample(nrow(expedia.data), 1000),]
   }
 }
 
@@ -241,36 +241,31 @@ preproc<-function(preprocSwitch, input_data, name_new_dataframe){
   {
     message("Working on competitor features...")
     # Count the number of NaN/-1/+1 values across compX_rate
-    comp_rate_missing = input_data  %>%
-      dplyr::select(ends_with("rate"))%>%
-      rowwise()%>%(function(x)(mutate(input_data,
-        comp_rate_na=sum(is.na(x)),
-        comp_rate_positive=sum(x == 1, na.rm = T),
-        comp_rate_negative=sum(x == -1, na.rm = T),
-        comp_rate_neutral=sum(x == 0, na.rm = T)))) %>% 
-      dplyr::select(starts_with("comp_rate"))
+    DT<-input_data  %>% dplyr::select(ends_with("rate"))%>% as.data.table()
+    agg<-  dcast(melt(DT[, rn:=.I], id.vars="rn")[, .N, by=.(rn, value)], rn ~ value, sum, value.var="N")
+    test<-as.data.frame(DT[agg, on=.(rn)])
+    comp_rate_missing = test[,-1:-9]
+    names(comp_rate_missing) = c("comp_rate_na","comp_rate_positive","comp_rate_negative","comp_rate_neutral")
+
     
     # Count the number of NaN/0/+1 values across compX_inv
-    comp_inv_missing = input_data %>% 
-      rowwise() %>%
-      dplyr::select(ends_with("inv")) %>% 
-      (function(x)mutate(input_data,
-        comp_inv_na = sum(is.na(x)),
-        comp_inv_positive = sum(x == 1, na.rm=T),
-        comp_inv_neutral = sum(x == 0, na.rm = T)))%>% 
-      dplyr::select(starts_with("comp_inv"))
+    DT<-input_data  %>% dplyr::select(ends_with("rate"))%>% as.data.table()
+    agg<-  dcast(melt(DT[, rn:=.I], id.vars="rn")[, .N, by=.(rn, value)], rn ~ value, sum, value.var="N")
+    test<-as.data.frame(DT[agg, on=.(rn)])
+    comp_inv_missing = test[,-1:-9]
+    names(comp_inv_missing) = c("comp_inv_na","comp_inv_positive","comp_inv_negative","comp_inv_neutral")
+    
     
     # Count the number of NaN/mean(abs) values across compX_rate_percent
-    comp_rate_percent_missing = input_data %>% rowwise()%>%
-      dplyr::select(ends_with("rate_percent_diff")) %>%
-      (function(x)mutate(input_data,
-                         comp_rate_percent_diff_na = sum(is.na(x))))%>% 
-      dplyr::select(starts_with("comp_rate_percent"))
+    DT<-input_data  %>% dplyr::select(ends_with("rate"))%>% as.data.table()
+    agg<-  dcast(melt(DT[, rn:=.I], id.vars="rn")[, .N, by=.(rn, value)], rn ~ value, sum, value.var="N")
+    test<-as.data.frame(DT[agg, on=.(rn)])
+    comp_rate_percent_diff_na = test[,10]
+    names(comp_rate_percent_diff_na) = c("comp_rate_percent_diff_na")
     
     # Cbind the existing data
-    input_data = cbind(input_data, comp_rate_missing, comp_inv_missing, comp_rate_percent_missing)
-    
-    
+    input_data = cbind(input_data, comp_rate_missing, comp_inv_missing, comp_rate_percent_diff_na)
+
     #######################################################################################
     # Lower price available 
     #######################################################################################
@@ -635,33 +630,59 @@ preprocess_data = function(input_data, subsample = 0.10){
 ############################################
 ## LambdaMART
 ############################################
-LambdaMART<-function(Data)
+LambdaMART<-function(Data,Data2=NULL,outputswitch = FALSE)
 {
-  amount1<-30000
-  amount2<-50000
   Data<-as.data.frame(Data)
+
   now<-Sys.time()
-  search_IDs <- sample(unique(Data[,1]),amount1+amount2)
-  Data_IDs<-sample(search_IDs,amount1)
-  Data2_IDs<-search_IDs[!search_IDs%in% Data_IDs]
-  Data2<- Data[Data$srch_id%in% Data2_IDs,]
-  Data<- Data[Data$srch_id%in% Data_IDs,]
-  bookClickScore =  4 * Data[,"booking_bool"] + Data[,"click_bool"]
-  Data <- data.frame(Data, bookClickScore)
+  if(!outputswitch)
+  {
+
+    set.seed(10)
+    amount1<-30000
+    amount2<-80000
+
+  
+    search_IDs <- sample(unique(Data[,1]),amount1+amount2)
+    Data_IDs<-sample(search_IDs,amount1)
+    Data2_IDs<-search_IDs[!search_IDs%in% Data_IDs]
+    Data2<- Data[Data$srch_id%in% Data2_IDs,]
+    Data<- Data[Data$srch_id%in% Data_IDs,]
+  }
+  else{
+    amount1<-length(unique(Data[,1]))#50000
+    search_IDs <- sample(unique(Data[,1]),amount1)
+    Data<- Data[Data$srch_id%in% search_IDs,]
+    Data2<-as.data.frame(Data2)
+    bookClickScore <-  4 * Data2[,"booking_bool"] + Data2[,"click_bool"]
+    Data2 <- cbind(Data2, bookClickScore)
+    rm(bookClickScore)
+  }
+  bookClickScore <-  4 * Data[,"booking_bool"] + Data[,"click_bool"]
+  Data <- cbind(Data, bookClickScore)
+  print(Sys.time()-now)
+  now<-Sys.time()
+  print("begin fitting")
   fit<-gbm(
     bookClickScore~ visitor_hist_starrating + prop_starrating + prop_review_score + prop_brand_bool+prop_location_score1 + prop_location_score2+
-      prop_log_historical_price + price_usd+promotion_flag + srch_length_of_stay + srch_booking_window + srch_adult_count + srch_children_count+
+      prop_log_historical_price + price_usd+promotion_flag + srch_length_of_stay + srch_booking_window + srch_adults_count + srch_children_count+
       srch_room_count + srch_saturday_night_bool + srch_query_affinity_score + orig_destination_distance + 
-      comp_rate_na + comp_rate_positive + comp_rate_negative + comp_rate_neutral+comp_inv_na + comp_inv_positive + 
-      comp_inv_neutral + comp_rate_percent_diff_na + comp_rate_bool+ comp_inv_bool + starr_dif + price_dif+normal_price + price_quality 
-    , data=Data, shrinkage =0.1, n.trees = 500,
+      comp_rate_na + comp_rate_positive + comp_rate_negative + comp_rate_neutral+comp_inv_na + comp_inv_positive +comp_inv_negative + 
+      comp_inv_neutral + comp_rate_percent_diff_na + comp_rate_bool + starr_dif + price_dif+normal_price + price_quality 
+    , data=Data, shrinkage =0.15, n.trees = 2000,
            distribution=list(name='pairwise',metric="conc",group='srch_id'), bag.fraction = 0.5,  n.minobsinnode = 50)
+  print(Sys.time()-now)
+  now<-Sys.time()
   best.iter <- gbm.perf(fit,method="OOB")
+  print("begin predicting")
   Prediction <-  predict(fit,Data2,best.iter)
   print(Sys.time()-now)
-  submit <- data.frame(Data2, prediction = Prediction,index=0)[,-53][,-9:-51][,-2:-7]
-  submit<- submit[order(submit[,1],-submit[,6]),]
-  CheckScore(submit)
+  submit <- cbind(Data2, prediction = Prediction,index=0)[,-31:-45][,-29][,-9:-27][,-2:-7]
+  submit<- submit[order(submit[,1],-submit$prediction),]
+  if(!outputswitch)
+    submit<-CheckScore(submit)
+  else(outputswitch)
+    return(submit)
 }
 
 
@@ -738,7 +759,8 @@ CheckScore<-function(DataGuess)
   print(Sys.time()-now)
   #print(NDCG[1:100,])
   print(mean(NDCG[,4]))
+  return(DataGuess)
 }
-#LambdaMART(expedia.data)
+#LambdaMART(expedia.dataproc)
 #Benchmark(expedia.data)
-Main()
+#Main()
